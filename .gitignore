@@ -1,0 +1,40 @@
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+*.local.yml
+*.local.yaml
+
+# Maven / Java
+target/
+*.class
+.mvn/timing.properties
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Runtime data, native/model artifacts and logs
+var/
+*.log
+logs/
+*.onnx
+*.epub
+*.wav
+*.mp3
+*.opus
+*.zip
+
+# Test and reports
+coverage/
+test-results/
+
+# Local-only notes and configuration
+/docs/
+/AGENTS.md
+/CONTRIBUTING.md
+/.github/PULL_REQUEST_TEMPLATE.md
+/.github/ISSUE_TEMPLATE/
