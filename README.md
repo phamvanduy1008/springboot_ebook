@@ -11,12 +11,18 @@ Java backend for an EPUB reading application. The project includes an HTTP API a
 ## Build
 
 ```sh
-git clone --branch chore/be-00-1-base-code https://github.com/phamvanduy1008/springboot_ebook.git
+git clone --branch chore/be-00-2-dev-ci https://github.com/phamvanduy1008/springboot_ebook.git
 cd springboot_ebook
 ./mvnw clean verify
 ```
 
 On Windows, set `JAVA_HOME` to your JDK 21 directory and use `mvnw.cmd clean verify`.
+
+## Local configuration
+
+Copy `.env.example` to `.env` in the repository root and supply your local settings. The file uses Java properties syntax; do not add shell `export` statements or quotes. Environment variables override file values. Never commit credentials.
+
+Supported profiles are `local`, `test` and `prod`. Tests use isolated settings. Production startup validates required configuration and requires an HTTPS public origin.
 
 ## Run
 
