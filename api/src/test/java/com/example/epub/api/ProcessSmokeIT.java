@@ -29,8 +29,8 @@ class ProcessSmokeIT {
         Process worker = null;
         try {
             api = new ProcessBuilder(java, "-jar", apiDir.resolve("target/api-" + version + "-exec.jar").toString(),
-                    "--server.port=0", "--debug=false").redirectErrorStream(true).redirectOutput(apiLog.toFile()).start();
-            worker = new ProcessBuilder(java, "-jar", root.resolve("worker/target/worker-" + version + "-exec.jar").toString(), "--debug=false")
+                    "--server.port=0", "--spring.profiles.active=test", "--debug=false").redirectErrorStream(true).redirectOutput(apiLog.toFile()).start();
+            worker = new ProcessBuilder(java, "-jar", root.resolve("worker/target/worker-" + version + "-exec.jar").toString(), "--spring.profiles.active=test", "--debug=false")
                     .redirectErrorStream(true).redirectOutput(workerLog.toFile()).start();
             awaitStarted(api, apiLog, "Started ApiApplication");
             awaitStarted(worker, workerLog, "Started WorkerApplication");

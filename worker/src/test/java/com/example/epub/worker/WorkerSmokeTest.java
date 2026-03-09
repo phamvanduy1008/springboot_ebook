@@ -12,7 +12,7 @@ class WorkerSmokeTest {
     void startsAndClosesWithoutHttpDatabaseOrNativeRuntime() {
         var application = new SpringApplication(WorkerApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
-        ConfigurableApplicationContext context = application.run("--debug=false", "--logging.level.root=WARN");
+        ConfigurableApplicationContext context = application.run("--spring.profiles.active=test", "--debug=false", "--logging.level.root=WARN");
         try {
             assertTrue(context.isActive());
             assertFalse(context.getClass().getName().contains("WebServer"));

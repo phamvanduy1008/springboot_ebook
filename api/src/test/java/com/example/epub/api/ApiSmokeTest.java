@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ApiSmokeTest {
     @Test
     void servesHealthOverRealHttpAndExposesNoOtherActuatorEndpoints() throws Exception {
-        try (var context = SpringApplication.run(ApiApplication.class, "--server.port=0", "--debug=false", "--logging.level.root=WARN")) {
+        try (var context = SpringApplication.run(ApiApplication.class, "--server.port=0", "--spring.profiles.active=test", "--debug=false", "--logging.level.root=WARN")) {
             int port = ((WebServerApplicationContext) context).getWebServer().getPort();
             try (var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
                 for (String endpoint : new String[]{"health", "health/liveness", "health/readiness"}) {
