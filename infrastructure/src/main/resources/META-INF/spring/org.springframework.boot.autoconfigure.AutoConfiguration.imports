@@ -1,1 +1,3 @@
 com.example.epub.infrastructure.config.RuntimeConfiguration
+com.example.epub.infrastructure.identity.IdentityConfiguration
+com.example.epub.infrastructure.identity.LocalUserSeed
