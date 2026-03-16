@@ -13,6 +13,7 @@ $password=[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N')
 [System.IO.File]::WriteAllText($passwordFile,$password,[System.Text.Encoding]::ASCII)
 $saved=@{};foreach($name in @('PGPASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','EPUB_IDENTITY_DB_TEST')) {$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $started=$false
+$apiProcess=$null;$workerProcess=$null
 try {
     & (Join-Path $PostgresBin 'initdb.exe') -D $data -U epub_test --pwfile=$passwordFile --encoding=UTF8 --locale=C -A scram-sha-256 *> (Join-Path $testRoot 'initdb.log')
     if ($LASTEXITCODE -ne 0) {throw 'initdb failed; inspect local initdb.log'}
@@ -29,10 +30,35 @@ try {
     if ($LASTEXITCODE -ne 0) {throw 'Test database creation failed'}
     $env:DB_URL="jdbc:postgresql://127.0.0.1:$Port/epub_identity_test";$env:DB_USERNAME='epub_test';$env:DB_PASSWORD=$password;$env:EPUB_IDENTITY_DB_TEST='true'
     Push-Location $repoRoot
-    try { & .\mvnw.cmd -B -ntp verify; if ($LASTEXITCODE -ne 0) {throw 'Database verify failed'} }
+    try {
+        & .\mvnw.cmd -B -ntp verify; if ($LASTEXITCODE -ne 0) {throw 'Database verify failed'}
+        $listener=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
+        $listener.Start();$apiPort=$listener.LocalEndpoint.Port;$listener.Stop()
+        $java=Join-Path $env:JAVA_HOME 'bin/java.exe'
+        $apiJar=Join-Path $repoRoot 'api/target/api-0.1.0-SNAPSHOT-exec.jar'
+        $workerJar=Join-Path $repoRoot 'worker/target/worker-0.1.0-SNAPSHOT-exec.jar'
+        $apiProcess=Start-Process -FilePath $java -ArgumentList ('-jar "'+$apiJar+'" --server.port='+$apiPort+' --spring.profiles.active=local --app.local-seed.enabled=false --debug=false') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $testRoot 'api.log') -RedirectStandardError (Join-Path $testRoot 'api.err')
+        $workerProcess=Start-Process -FilePath $java -ArgumentList ('-jar "'+$workerJar+'" --spring.profiles.active=local --app.local-seed.enabled=false --debug=false') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $testRoot 'worker.log') -RedirectStandardError (Join-Path $testRoot 'worker.err')
+        $healthy=$false
+        for($attempt=0;$attempt -lt 100;$attempt++) {
+            if($apiProcess.HasExited -or $workerProcess.HasExited) {throw 'Packaged process exited; inspect local api/worker logs'}
+            try {
+                $health=Invoke-RestMethod -TimeoutSec 2 ("http://127.0.0.1:"+$apiPort+'/actuator/health')
+                $workerReady=Select-String -Path (Join-Path $testRoot 'worker.log') -SimpleMatch 'Started WorkerApplication' -Quiet
+                if($health.status -eq 'UP' -and $workerReady) {$healthy=$true;break}
+            } catch { }
+            Start-Sleep -Milliseconds 250
+        }
+        if(-not $healthy) {throw 'Packaged API/worker did not become healthy with the local PostgreSQL database'}
+        Write-Output 'PASS: packaged API health UP and headless worker started with the isolated PostgreSQL database'
+    }
     finally {Pop-Location}
 } finally {
-    try { if ($started) {
+    try {
+        foreach($process in @($apiProcess,$workerProcess)) {
+            if($null -ne $process -and -not $process.HasExited) {Stop-Process -Id $process.Id -ErrorAction SilentlyContinue}
+        }
+        if ($started) {
         $stopArgs='-D "'+$data+'" -m fast -w stop'
         $control=Start-Process -FilePath (Join-Path $PostgresBin 'pg_ctl.exe') -ArgumentList $stopArgs -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput (Join-Path $testRoot 'stop.out') -RedirectStandardError (Join-Path $testRoot 'stop.err')
         if ($control.ExitCode -ne 0) {Write-Error 'Test cluster could not be stopped; inspect stop.err'}

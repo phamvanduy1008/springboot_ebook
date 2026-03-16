@@ -12,7 +12,7 @@ Java backend for an EPUB reading application. The project includes an HTTP API a
 ## Build
 
 ```sh
-git clone --branch feat/be-02-1-identity-db https://github.com/phamvanduy1008/springboot_ebook.git
+git clone --branch feat/be-00-3-api-contract https://github.com/phamvanduy1008/springboot_ebook.git
 cd springboot_ebook
 ./mvnw clean verify
 ```
@@ -57,3 +57,11 @@ For native PostgreSQL integration tests on Windows, set `JAVA_HOME` to JDK 21 an
 ```
 
 The script creates an isolated loopback cluster with temporary credentials, tests migrations, JPA and JDBC session persistence, then stops its processes and removes the credential file. Test data and logs remain under ignored `var/`. Without this harness, database integration tests are skipped.
+
+## API contract
+
+`contracts/openapi.yaml` is the source contract. The implemented versioned endpoint is `GET /api/v1/health`; authentication and catalog endpoints are not implemented yet.
+
+MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
+
+For local browser development, proxy `/api` to the backend and use relative URLs. Cross-origin credential access is not enabled globally.
