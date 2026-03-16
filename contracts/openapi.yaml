@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: EPUB API foundation
+  version: 0.1.0
+  description: Only implemented endpoints are listed. Auth and catalog are future tasks.
+servers:
+  - url: /
+paths:
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: Aggregate application health without component details
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Application is healthy
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: An application health contributor is unhealthy
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        default:
+          $ref: '#/components/responses/Problem'
+components:
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: Safe ASCII ID up to 64 characters; invalid values are replaced by a UUID.
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Sort:
+      name: sort
+      in: query
+      description: 'field,asc or field,desc. Endpoint-specific allowlist; id,asc is appended as tie-breaker. Reserved for future list endpoints.'
+      schema:
+        type: string
+        default: id,asc
+  headers:
+    RequestId:
+      description: Effective request identifier, also returned in problem bodies.
+      schema:
+        type: string
+        maxLength: 64
+  responses:
+    Problem:
+      description: Consistent error response without stack traces or rejected input values
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, detail, requestId, fieldErrors]
+      properties:
+        type:
+          type: string
+          const: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+        detail:
+          type: string
+        requestId:
+          type: string
+          maxLength: 64
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    Page:
+      description: Reusable envelope for future list endpoints; items are mapped DTOs, never entities.
+      type: object
+      additionalProperties: false
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
