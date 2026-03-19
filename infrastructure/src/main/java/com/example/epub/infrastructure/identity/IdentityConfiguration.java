@@ -12,5 +12,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses=UserEntity.class)
 @EnableJpaRepositories(basePackageClasses=JpaUserRepository.class)
 public class IdentityConfiguration {
+    @Bean public com.example.epub.application.identity.AccountStore accountStore(org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        return new JdbcAccountStore(jdbc);
+    }
     @Bean public UserAccounts userAccounts(JpaUserRepository repository) { return new JpaUserAccounts(repository); }
 }

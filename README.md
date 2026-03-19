@@ -1,5 +1,25 @@
 # springboot_ebook
 
+## Session authentication
+
+The API uses PostgreSQL-backed sessions, not browser JWTs. Call `GET /api/v1/auth/csrf`
+with cookies enabled, then submit JSON `{ "email": "...", "password": "..." }` to
+`POST /api/v1/auth/login` with the returned header name/token and the same cookie jar.
+After login, fetch a new CSRF token; login rotates the session ID and clears the old token.
+`GET /api/v1/auth/me` returns the current active user. `POST /api/v1/auth/logout`
+requires CSRF and invalidates the server session. Never store credentials or session IDs
+in browser storage. Sessions expire after 30 minutes of inactivity; cookies are HttpOnly,
+SameSite=Lax and Secure in the production profile. Use a same-origin proxy for the frontend.
+
+Login attempts are throttled atomically in PostgreSQL by hashed source IP and normalized
+email. The API trusts the direct remote address, not arbitrary forwarded headers. A reverse
+proxy deployment must explicitly configure its trusted forwarding boundary before release.
+The local opt-in seed creates a USER only, using `APP_LOCAL_SEED_ENABLED`, `SEED_EMAIL`
+and `SEED_PASSWORD` from private local configuration. No default login exists.
+
+Run `tools/Test-LocalDatabase.ps1` on Windows with JDK 21 and native PostgreSQL to exercise
+CSRF, login/logout, session fixation, throttle and session persistence across API restart.
+
 Java backend for an EPUB reading application. The project includes an HTTP API and a separate headless worker process. EPUB ingestion and text-to-speech are still in development.
 
 ## Requirements
@@ -12,7 +32,7 @@ Java backend for an EPUB reading application. The project includes an HTTP API a
 ## Build
 
 ```sh
-git clone --branch feat/be-00-3-api-contract https://github.com/phamvanduy1008/springboot_ebook.git
+git clone https://github.com/phamvanduy1008/springboot_ebook.git
 cd springboot_ebook
 ./mvnw clean verify
 ```
@@ -60,7 +80,7 @@ The script creates an isolated loopback cluster with temporary credentials, test
 
 ## API contract
 
-`contracts/openapi.yaml` is the source contract. The implemented versioned endpoint is `GET /api/v1/health`; authentication and catalog endpoints are not implemented yet.
+`contracts/openapi.yaml` is the source contract for the implemented health and session authentication endpoints. Catalog endpoints are not implemented yet.
 
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 

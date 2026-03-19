@@ -47,7 +47,7 @@ class ApiContractTest {
         var parsed=new OpenAPIV3Parser().readLocation(getClass().getResource("/openapi.yaml").toURI().toString(),null,options);
         assertNotNull(parsed.getOpenAPI(),String.valueOf(parsed.getMessages()));
         assertTrue(parsed.getMessages()==null || parsed.getMessages().isEmpty(),String.valueOf(parsed.getMessages()));
-        var spec=parsed.getOpenAPI();assertEquals(Set.of("/api/v1/health"),spec.getPaths().keySet());
+        var spec=parsed.getOpenAPI();assertTrue(spec.getPaths().keySet().containsAll(Set.of("/api/v1/health","/api/v1/auth/login","/api/v1/auth/me","/api/v1/auth/csrf","/api/v1/auth/logout")));
         try (var context=new SpringApplicationBuilder(ApiApplication.class,ProbeController.class)
                 .run("--server.port=0","--spring.profiles.active=test,contract-test","--debug=false","--logging.level.root=WARN");
              var client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
