@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Only implemented endpoints are listed. Auth and catalog are future tasks.
+  description: Implemented health and session authentication endpoints. Catalog is not implemented.
 servers:
   - url: /
 paths:
@@ -33,8 +33,84 @@ paths:
                 $ref: '#/components/schemas/Health'
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/auth/csrf:
+    get:
+      operationId: getCsrf
+      summary: Bootstrap or refresh the anonymous/authenticated session CSRF token
+      responses:
+        '200':
+          description: No-store CSRF token; bootstrap sets an HttpOnly session cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [headerName, token]
+                properties:
+                  headerName: {type: string}
+                  token: {type: string}
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      summary: Authenticate with email/password; rotate session and refresh CSRF afterward
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string, format: email, maxLength: 320}
+                password: {type: string, format: password, maxLength: 72, writeOnly: true}
+      responses:
+        '200':
+          description: Logged in; HttpOnly SameSite=Lax session cookie, Secure in production
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/auth/me:
+    get:
+      operationId: getCurrentUser
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Current active account, without credentials or session secrets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      responses:
+        '204':
+          description: Session invalidated and cookie expired; refresh CSRF before next login
+        default:
+          $ref: '#/components/responses/Problem'
 components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION
   parameters:
+    Csrf:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      description: Token from GET /api/v1/auth/csrf, tied to the session cookie
+      schema: {type: string}
     RequestId:
       name: X-Request-ID
       in: header
@@ -81,6 +157,15 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    Me:
+      type: object
+      required: [id, email, displayName, role, emailVerified]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        displayName: {type: string, maxLength: 60}
+        role: {type: string, enum: [USER, ADMIN]}
+        emailVerified: {type: boolean}
     Health:
       type: object
       additionalProperties: false
