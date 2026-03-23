@@ -17,7 +17,7 @@ public class SessionLogin {
         request.getSession();request.changeSessionId();
         new HttpSessionCsrfTokenRepository().saveToken(null,request,response);
         var context=SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(new SessionPrincipal(account.id()),null,
+        context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(new SessionPrincipal(account.id(),account.passwordChangedAt()),null,
                 List.of(new SimpleGrantedAuthority("ROLE_"+account.role()))));
         SecurityContextHolder.setContext(context);contexts.saveContext(context,request,response);
         response.setHeader("Cache-Control","no-store");

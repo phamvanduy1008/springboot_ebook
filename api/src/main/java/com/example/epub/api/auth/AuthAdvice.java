@@ -9,6 +9,14 @@ import org.springframework.web.bind.annotation.*;
 public class AuthAdvice {
     private final AuthProblems problems;
     public AuthAdvice(AuthProblems problems) { this.problems=problems; }
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ResponseEntity<?> deniedByMethodSecurity(org.springframework.security.access.AccessDeniedException denied,HttpServletRequest request) {
+        return failure(new AuthFailure(403,"ACCESS_DENIED"),request);
+    }
+    @ExceptionHandler(com.example.epub.application.identity.AccessPolicy.Denied.class)
+    ResponseEntity<?> denied(com.example.epub.application.identity.AccessPolicy.Denied denied,HttpServletRequest request) {
+        return failure(new AuthFailure(denied.hidden()?404:403,denied.hidden()?"NOT_FOUND":"ACCESS_DENIED"),request);
+    }
     @ExceptionHandler(AuthFailure.class)
     ResponseEntity<?> failure(AuthFailure error,HttpServletRequest request) {
         var response=ResponseEntity.status(error.status()).header("Content-Type","application/problem+json").header("Cache-Control","no-store");

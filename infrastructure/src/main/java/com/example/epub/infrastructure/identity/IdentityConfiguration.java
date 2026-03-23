@@ -12,6 +12,14 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses=UserEntity.class)
 @EnableJpaRepositories(basePackageClasses=JpaUserRepository.class)
 public class IdentityConfiguration {
+    @Bean public JdbcAccessChanges accessChanges(org.springframework.jdbc.core.JdbcTemplate jdbc,
+            org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts) {
+        return new JdbcAccessChanges(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts);
+    }
+    @Bean public com.example.epub.application.identity.AccessManagement accessManagement(
+            com.example.epub.application.identity.AccountStore accounts,JdbcAccessChanges changes) {
+        return new com.example.epub.application.identity.AccessManagement(accounts,changes);
+    }
     @Bean public com.example.epub.application.identity.AccountStore accountStore(org.springframework.jdbc.core.JdbcTemplate jdbc) {
         return new JdbcAccountStore(jdbc);
     }

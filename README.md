@@ -2,6 +2,13 @@
 
 ## Session authentication
 
+Each authenticated request rechecks the current database role, status and credential epoch.
+Locking/deleting a user or changing their password invalidates an old principal. Access changes
+revoke JDBC sessions atomically and serialize administrator-set changes to protect the last
+active administrator. Ownership policies do not grant administrators implicit access to another
+user's private resources. Audit events accept typed actions and IDs only, without arbitrary text
+or credentials. These policies are tested independently; an admin HTTP API is not exposed yet.
+
 The API uses PostgreSQL-backed sessions, not browser JWTs. Call `GET /api/v1/auth/csrf`
 with cookies enabled, then submit JSON `{ "email": "...", "password": "..." }` to
 `POST /api/v1/auth/login` with the returned header name/token and the same cookie jar.
