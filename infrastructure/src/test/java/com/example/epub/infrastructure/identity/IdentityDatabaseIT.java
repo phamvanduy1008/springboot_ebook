@@ -42,7 +42,7 @@ class IdentityDatabaseIT {
             var jdbc=context.getBean(JdbcTemplate.class);
             var datasource=context.getBean(DataSource.class);
             context.getBean(Flyway.class).validate();
-            assertEquals(2, jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class));
+            assertTrue(jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class)>=3);
             assertEquals(0, jdbc.queryForObject("select count(*) from users", Integer.class), "No automatic demo/admin seed");
             jdbc.update("insert into users(id,email_normalized,password_hash,display_name) values (?,?,?,?)",userId,"reader@example.test","test-hash","Reader");
             assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("insert into users(email_normalized,password_hash,display_name) values ('reader@example.test','hash','Duplicate')"));

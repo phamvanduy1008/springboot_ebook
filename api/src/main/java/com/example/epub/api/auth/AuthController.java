@@ -22,8 +22,10 @@ public class AuthController {
     private final PasswordEncoder passwords;
     private final SessionLogin sessions;
     private final String dummyHash;
-    public AuthController(AccountStore accounts,PasswordEncoder passwords,SessionLogin sessions) {
+    private final com.example.epub.application.identity.AuditEvents audits;
+    public AuthController(AccountStore accounts,PasswordEncoder passwords,SessionLogin sessions,com.example.epub.application.identity.AuditEvents audits) {
         this.accounts=accounts;this.passwords=passwords;this.sessions=sessions;
+        this.audits=audits;
         dummyHash=passwords.encode(UUID.randomUUID().toString());
     }
     public record Login(@NotBlank @Email @Size(max=320) String email,@NotBlank @Size(max=72) String password) {
@@ -43,7 +45,13 @@ public class AuthController {
         var found=accounts.byEmail(email);
         String encoded=found.map(Account::passwordHash).orElse(dummyHash);
         boolean valid=input.password().getBytes(StandardCharsets.UTF_8).length<=72 && passwords.matches(input.password(),encoded);
-        if(found.isEmpty() || !valid || !found.get().active()) throw new AuthFailure(401,"INVALID_CREDENTIALS");
+        if(found.isEmpty() || !valid || !found.get().active()) {
+            audits.record(com.example.epub.application.identity.AuditEvents.Action.LOGIN_FAILED,null,null,
+                    (String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
+            throw new AuthFailure(401,"INVALID_CREDENTIALS");
+        }
+        audits.record(com.example.epub.application.identity.AuditEvents.Action.LOGIN_SUCCEEDED,found.get().id(),found.get().id(),
+                (String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
         sessions.establish(found.get(),request,response);return Me.from(found.get());
     }
     @GetMapping("/me") public Me me(Authentication authentication,HttpServletResponse response) {
