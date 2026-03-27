@@ -9,7 +9,7 @@ import java.util.UUID;
 public class UserEntity {
     @Id private UUID id;
     @Column(name="email_normalized", nullable=false, length=320, unique=true) private String email;
-    @Column(name="password_hash", nullable=false, length=255) private String passwordHash;
+    @Column(name="password_hash", length=255) private String passwordHash;
     @Column(name="display_name", nullable=false, length=60) private String displayName;
     @Column(nullable=false, length=240) private String bio;
     @Column(nullable=false, length=16) private String role;

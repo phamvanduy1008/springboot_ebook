@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/api/v1/auth")
 @ConditionalOnProperty(name="app.persistence.enabled",havingValue="true")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type=org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
 public class AuthController {
     private final AccountStore accounts;
     private final PasswordEncoder passwords;

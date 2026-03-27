@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Implemented health and session authentication endpoints. Catalog is not implemented.
+  description: Implemented health, session and opt-in Google authentication endpoints. Catalog is not implemented.
 servers:
   - url: /
 paths:
@@ -31,6 +31,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/auth/capabilities:
+    get:
+      operationId: getAuthCapabilities
+      responses:
+        '200':
+          description: Enabled authentication methods; never includes client credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [password, google]
+                properties:
+                  password: {type: boolean}
+                  google: {type: boolean}
+  /api/v1/oauth2/authorization/google:
+    get:
+      operationId: beginGoogleLogin
+      summary: Navigate the browser here; Google login must be enabled
+      parameters:
+        - name: returnTo
+          in: query
+          schema: {type: string, maxLength: 512}
+          description: Internal path only; unsafe values fall back to the site root
+      responses:
+        '302':
+          description: Redirect to Google with session-bound state, nonce and PKCE challenge
+          headers:
+            Location:
+              schema: {type: string, format: uri}
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/login/oauth2/code/google:
+    get:
+      operationId: googleLoginCallback
+      summary: OIDC protocol callback; not a frontend JSON API
+      parameters:
+        - name: code
+          in: query
+          schema: {type: string}
+        - name: state
+          in: query
+          schema: {type: string}
+        - name: error
+          in: query
+          schema: {type: string}
+      responses:
+        '302':
+          description: Redirect to configured frontend after validated login, or login page with allowlisted generic failure code
+          headers:
+            Location:
+              schema: {type: string, format: uri}
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/auth/csrf:

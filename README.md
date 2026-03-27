@@ -2,6 +2,31 @@
 
 ## Session authentication
 
+### Google sign-in
+
+Google sign-in is optional and disabled by default. In Google Cloud, configure the OAuth
+consent screen and a **Web application** OAuth client, add test users while the app is in
+testing, and register an exact redirect URI. For a local Vite same-origin proxy, use
+`http://localhost:5173/api/v1/login/oauth2/code/google`. Set `GOOGLE_LOGIN_ENABLED=true`,
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` in private backend
+configuration. `APP_PUBLIC_ORIGIN` must be the frontend origin. Production requires HTTPS.
+The callback URI is explicit configuration and never derived from untrusted Host headers.
+
+Check `/api/v1/auth/capabilities` before showing the Google button. Navigate the browser to
+`/api/v1/oauth2/authorization/google?returnTo=/account`; do not fetch this as a JSON request.
+The backend performs the code exchange, validates the ID token and establishes the same
+session used by password login. Refresh CSRF and `/api/v1/auth/me` after returning to the UI.
+Only openid/profile/email are requested; Google access/refresh/ID tokens are not stored in
+the database or application session. Cancel/failure redirects to `/login?error=GOOGLE_LOGIN_FAILED`.
+
+Identities use Google's issuer and subject, never email. Matching emails are not automatically
+linked. Google-only accounts have no password credential; password login fails normally.
+Gmail/Workspace-authoritative emails may be marked verified; other Google email addresses
+still require the application's email-verification flow. Claims never grant administrator roles.
+The native database harness exercises a local OIDC provider/JWKS and negative-token cases.
+A real Google browser test needs your Web client and test-user configuration; automated OIDC
+tests do not establish that your Google Cloud configuration has been verified live.
+
 Each authenticated request rechecks the current database role, status and credential epoch.
 Locking/deleting a user or changing their password invalidates an old principal. Access changes
 revoke JDBC sessions atomically and serialize administrator-set changes to protect the last
