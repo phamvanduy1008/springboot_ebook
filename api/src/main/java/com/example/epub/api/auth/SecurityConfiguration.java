@@ -20,7 +20,8 @@ public class SecurityConfiguration {
     @Bean UserDetailsService noGeneratedUser() { return name -> {throw new UsernameNotFoundException("Not available");}; }
     @Bean SecurityFilterChain security(HttpSecurity http,AuthProblems problems,Environment environment,
             org.springframework.beans.factory.ObjectProvider<com.example.epub.application.identity.AccountStore> accounts,
-            org.springframework.beans.factory.ObjectProvider<com.example.epub.application.identity.AuditEvents> audits) throws Exception {
+            org.springframework.beans.factory.ObjectProvider<com.example.epub.application.identity.AuditEvents> audits,
+            org.springframework.beans.factory.ObjectProvider<GoogleLogin> google) throws Exception {
         http.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .securityContext(context -> context.securityContextRepository(new HttpSessionSecurityContextRepository()))
@@ -38,11 +39,13 @@ public class SecurityConfiguration {
             // Service-free contract/smoke profile. Never combined with prod (runtime validation rejects it).
             http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         } else {
+            if(google.getIfAvailable()!=null)google.getObject().configure(http);
             http.addFilterAfter(new CurrentAccountFilter(accounts.getObject()),org.springframework.security.web.context.SecurityContextHolderFilter.class);
             http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.GET,"/api/v1/books/**","/api/v1/categories/**","/api/v1/home","/api/v1/rankings/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/api/v1/health",
-                    "/api/v1/auth/csrf", "/api/v1/auth/login").permitAll()
+                    "/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/capabilities",
+                    "/api/v1/oauth2/authorization/**", "/api/v1/login/oauth2/code/**").permitAll()
                 .anyRequest().authenticated());
         }
         return http.build();
