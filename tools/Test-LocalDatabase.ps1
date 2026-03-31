@@ -1,6 +1,7 @@
 param(
     [string]$PostgresBin = 'C:\Program Files\PostgreSQL\18\bin',
-    [ValidateRange(1024,65535)][int]$Port = 55434
+    [ValidateRange(1024,65535)][int]$Port = 55434,
+    [string]$MailpitBin = $env:MAILPIT_BIN
 )
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path -Parent $PSScriptRoot
@@ -11,10 +12,27 @@ New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 $data=Join-Path $testRoot 'data';$passwordFile=Join-Path $testRoot 'password.tmp'
 $password=[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N')
 [System.IO.File]::WriteAllText($passwordFile,$password,[System.Text.Encoding]::ASCII)
-$saved=@{};foreach($name in @('PGPASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','EPUB_IDENTITY_DB_TEST')) {$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+$saved=@{};foreach($name in @('PGPASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','EPUB_IDENTITY_DB_TEST','SMTP_HOST','SMTP_PORT','EPUB_MAILPIT_URL')) {$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $started=$false
-$apiProcess=$null;$workerProcess=$null
+$apiProcess=$null;$workerProcess=$null;$mailpitProcess=$null
+function Get-TestPort {
+    $socket=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
+    $socket.Start();$available=$socket.LocalEndpoint.Port;$socket.Stop();return $available
+}
 try {
+    if(-not [string]::IsNullOrWhiteSpace($MailpitBin)) {
+        if(-not (Test-Path -LiteralPath $MailpitBin -PathType Leaf)) {throw 'Mailpit executable not found'}
+        $smtpPort=Get-TestPort;$mailpitPort=Get-TestPort
+        $mailpitArgs='--listen 127.0.0.1:'+$mailpitPort+' --smtp 127.0.0.1:'+$smtpPort+' --database "'+(Join-Path $testRoot 'mailpit.db')+'" --disable-version-check'
+        $mailpitProcess=Start-Process -FilePath $MailpitBin -ArgumentList $mailpitArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $testRoot 'mailpit.log') -RedirectStandardError (Join-Path $testRoot 'mailpit.err')
+        $env:SMTP_HOST='127.0.0.1';$env:SMTP_PORT=[string]$smtpPort;$env:EPUB_MAILPIT_URL='http://127.0.0.1:'+$mailpitPort
+        $mailpitReady=$false
+        for($attempt=0;$attempt -lt 60;$attempt++) {
+            if($mailpitProcess.HasExited) {throw 'Mailpit exited; inspect its local logs'}
+            try {$null=Invoke-RestMethod -TimeoutSec 2 ($env:EPUB_MAILPIT_URL+'/api/v1/info');$mailpitReady=$true;break} catch {Start-Sleep -Milliseconds 250}
+        }
+        if(-not $mailpitReady) {throw 'Mailpit did not become ready'}
+    }
     & (Join-Path $PostgresBin 'initdb.exe') -D $data -U epub_test --pwfile=$passwordFile --encoding=UTF8 --locale=C -A scram-sha-256 *> (Join-Path $testRoot 'initdb.log')
     if ($LASTEXITCODE -ne 0) {throw 'initdb failed; inspect local initdb.log'}
     $startArgs='-D "'+$data+'" -l "'+(Join-Path $testRoot 'postgres.log')+'" -o "-h 127.0.0.1 -p '+$Port+'" -w start'
@@ -55,7 +73,7 @@ try {
     finally {Pop-Location}
 } finally {
     try {
-        foreach($process in @($apiProcess,$workerProcess)) {
+        foreach($process in @($apiProcess,$workerProcess,$mailpitProcess)) {
             if($null -ne $process -and -not $process.HasExited) {Stop-Process -Id $process.Id -ErrorAction SilentlyContinue}
         }
         if ($started) {

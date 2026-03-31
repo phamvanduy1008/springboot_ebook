@@ -37,7 +37,8 @@ public class GoogleLogin {
     private final AuthProblems problems;
     private final GoogleAuthorizationRequests requests=new GoogleAuthorizationRequests();
     public GoogleLogin(ClientRegistrationRepository clients,GoogleAccounts accounts,SessionLogin sessions,AuditEvents audits,Environment env,AccountStore store,AuthProblems problems) {
-        this.clients=clients;this.accounts=accounts;this.sessions=sessions;this.audits=audits;frontend=env.getRequiredProperty("app.public-origin");
+        this.clients=clients;this.accounts=accounts;this.sessions=sessions;this.audits=audits;
+        frontend=env.getRequiredProperty("app.public-origin")+(env.getProperty("app.frontend.hash-routing",Boolean.class,true)?"/#":"");
         this.store=store;this.problems=problems;
     }
     public void configure(HttpSecurity http) throws Exception {

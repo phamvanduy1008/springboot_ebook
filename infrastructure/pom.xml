@@ -5,6 +5,7 @@
   <artifactId>infrastructure</artifactId>
   <description>Adapters implementing application ports; persistence is deferred.</description>
   <dependencies>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-mail</artifactId></dependency>
     <dependency><groupId>com.example.epub</groupId><artifactId>application</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-autoconfigure</artifactId></dependency>
     <dependency><groupId>com.example.epub</groupId><artifactId>migrations</artifactId><version>${project.version}</version></dependency>
