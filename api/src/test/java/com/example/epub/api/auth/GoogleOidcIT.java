@@ -90,7 +90,7 @@ class GoogleOidcIT {
                 String code=UUID.randomUUID().toString();params.put("subject",subject);params.put("email",email);params.put("mode","valid");codes.put(code,params);
                 String callback="/api/v1/login/oauth2/code/google?code="+code+"&state="+URLEncoder.encode(params.get("state"),StandardCharsets.UTF_8);
                 var response=browser.call("GET",callback,null,false);assertEquals(302,response.statusCode());
-                assertEquals("http://localhost:5173/account",response.headers().firstValue("Location").orElseThrow());assertNotEquals(before,browser.cookie());
+                assertEquals("http://localhost:5173/#/account",response.headers().firstValue("Location").orElseThrow());assertNotEquals(before,browser.cookie());
                 var me=browser.call("GET","/api/v1/auth/me",null,false);assertEquals(200,me.statusCode(),response.body());assertTrue(me.body().contains("USER"));
                 assertTrue(me.body().contains("\"emailVerified\":true"));
                 try(var resumed=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0",
@@ -120,7 +120,7 @@ class GoogleOidcIT {
                             +("missing-state".equals(mode)?"":"&state="+URLEncoder.encode(state,StandardCharsets.UTF_8));
                     var response=browser.call("GET",path,null,false);
                     assertEquals(302,response.statusCode(),mode+response.body());
-                    assertEquals("http://localhost:5173/login?error=GOOGLE_LOGIN_FAILED",response.headers().firstValue("Location").orElseThrow(),mode);
+                    assertEquals("http://localhost:5173/#/login?error=GOOGLE_LOGIN_FAILED",response.headers().firstValue("Location").orElseThrow(),mode);
                     assertEquals(401,browser.call("GET","/api/v1/auth/me",null,false).statusCode(),mode);
                 }
             }

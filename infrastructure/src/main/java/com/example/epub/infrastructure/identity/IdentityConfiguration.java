@@ -12,6 +12,15 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses=UserEntity.class)
 @EnableJpaRepositories(basePackageClasses=JpaUserRepository.class)
 public class IdentityConfiguration {
+    @Bean public EmailTokens emailTokens(org.springframework.jdbc.core.JdbcTemplate jdbc,org.springframework.mail.javamail.JavaMailSender mail,
+            org.springframework.core.env.Environment env) {
+        String frontend=env.getRequiredProperty("app.public-origin")+(env.getProperty("app.frontend.hash-routing",Boolean.class,true)?"/#":"");
+        return new EmailTokens(jdbc,mail,frontend,env.getProperty("app.mail.from","noreply@example.test"));
+    }
+    @Bean public com.example.epub.application.identity.Registration registration(org.springframework.jdbc.core.JdbcTemplate jdbc,
+            org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts,EmailTokens tokens) {
+        return new JdbcRegistration(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts,tokens);
+    }
     @Bean public com.example.epub.application.identity.GoogleAccounts googleAccounts(org.springframework.jdbc.core.JdbcTemplate jdbc,
             org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts) {
         return new JdbcGoogleAccounts(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts);

@@ -2,6 +2,36 @@
 
 ## Session authentication
 
+### Registration and email verification
+
+`POST /api/v1/auth/register` accepts email, displayName and password; it creates an unverified
+USER and sends a single-use verification link. `POST /api/v1/auth/verify-email` consumes the
+link token, while `POST /api/v1/auth/resend-verification` invalidates old verification tokens
+and sends a new one. All mutations require CSRF; passwords use the same 12-character minimum
+and 72-UTF-8-byte maximum policy. Unverified users cannot perform verified-only actions.
+Registration/resend return neutral 202 messages; existing Google-only credentials are never overwritten.
+
+Mail links use the configured frontend origin. Only SHA-256 token hashes are stored in PostgreSQL;
+`FRONTEND_HASH_ROUTING=true` matches the current React HashRouter, so email links and Google
+return redirects use `/#/verify-email`, `/#/login` and other hash routes. Set it false only for
+a frontend deliberately migrated to BrowserRouter with the required server rewrite rules.
+verification tokens expire after one hour and are consumed atomically. Local mail uses Mailpit
+at `SMTP_HOST`/`SMTP_PORT`. A send failure rolls back token/account changes and reports an error.
+SMTP delivery has finite connection/read/write timeouts. Mail is optional for process health by
+default; set `MAIL_HEALTH_ENABLED=true` to include it in aggregate health. Production SMTP setup
+and delivery retries/outbox are separate deployment work; do not enable SMTP debug logging.
+
+For end-to-end SMTP tests, download Mailpit locally and run:
+
+```powershell
+.\tools\Test-LocalDatabase.ps1 -MailpitBin 'C:\tools\mailpit.exe'
+```
+
+The harness starts an isolated loopback Mailpit instance on temporary ports, verifies captured
+mail through its API, and stops only its own processes. Without Mailpit, mail integration tests
+are explicitly skipped; ordinary unit/session/migration tests still run. Mailpit's local inbox
+contains test links and must remain in ignored runtime storage.
+
 ### Google sign-in
 
 Google sign-in is optional and disabled by default. In Google Cloud, configure the OAuth
@@ -17,7 +47,7 @@ Check `/api/v1/auth/capabilities` before showing the Google button. Navigate the
 The backend performs the code exchange, validates the ID token and establishes the same
 session used by password login. Refresh CSRF and `/api/v1/auth/me` after returning to the UI.
 Only openid/profile/email are requested; Google access/refresh/ID tokens are not stored in
-the database or application session. Cancel/failure redirects to `/login?error=GOOGLE_LOGIN_FAILED`.
+the database or application session. Cancel/failure redirects to the frontend login route with `error=GOOGLE_LOGIN_FAILED`.
 
 Identities use Google's issuer and subject, never email. Matching emails are not automatically
 linked. Google-only accounts have no password credential; password login fails normally.
