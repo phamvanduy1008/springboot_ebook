@@ -12,6 +12,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses=UserEntity.class)
 @EnableJpaRepositories(basePackageClasses=JpaUserRepository.class)
 public class IdentityConfiguration {
+    @Bean public com.example.epub.application.identity.PasswordRecovery passwordRecovery(org.springframework.jdbc.core.JdbcTemplate jdbc,
+            org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts,EmailTokens tokens,JdbcAccessChanges audits) {
+        return new JdbcPasswordRecovery(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts,tokens,audits);
+    }
     @Bean public EmailTokens emailTokens(org.springframework.jdbc.core.JdbcTemplate jdbc,org.springframework.mail.javamail.JavaMailSender mail,
             org.springframework.core.env.Environment env) {
         String frontend=env.getRequiredProperty("app.public-origin")+(env.getProperty("app.frontend.hash-routing",Boolean.class,true)?"/#":"");
