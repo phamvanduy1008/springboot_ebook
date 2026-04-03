@@ -4,6 +4,13 @@
 
 ### Registration and email verification
 
+`POST /api/v1/auth/forgot-password` accepts an email and always returns the same neutral 202
+body for eligible, unknown and Google-only accounts, including a mail-delivery failure.
+Password accounts receive a 30-minute reset link. `POST /api/v1/auth/reset-password` accepts
+the token and new password, atomically consumes it and revokes all application sessions.
+Reset cannot create a password on Google-only accounts and never marks email verified as a side effect.
+Both endpoints require CSRF and are rate limited; reset uses the same password policy as registration.
+
 `POST /api/v1/auth/register` accepts email, displayName and password; it creates an unverified
 USER and sends a single-use verification link. `POST /api/v1/auth/verify-email` consumes the
 link token, while `POST /api/v1/auth/resend-verification` invalidates old verification tokens

@@ -39,4 +39,9 @@ public class EmailTokens {
         if(ids.isEmpty())throw new Registration.InvalidToken();
         return ids.getFirst();
     }
+    public UUID userFor(String token,String purpose) {
+        if(token==null || !token.matches("[A-Za-z0-9_-]{43}"))throw new Registration.InvalidToken();
+        var ids=jdbc.queryForList("SELECT user_id FROM auth_tokens WHERE token_hash=? AND purpose=? AND consumed_at IS NULL AND expires_at>clock_timestamp()",UUID.class,hash(token),purpose);
+        if(ids.isEmpty())throw new Registration.InvalidToken();return ids.getFirst();
+    }
 }
