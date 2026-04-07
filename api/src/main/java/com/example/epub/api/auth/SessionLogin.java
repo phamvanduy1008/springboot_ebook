@@ -16,6 +16,9 @@ public class SessionLogin {
     public void establish(Account account,HttpServletRequest request,HttpServletResponse response) {
         request.getSession();request.changeSessionId();
         new HttpSessionCsrfTokenRepository().saveToken(null,request,response);
+        restore(account,request,response);
+    }
+    void restore(Account account,HttpServletRequest request,HttpServletResponse response) {
         var context=SecurityContextHolder.createEmptyContext();
         context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(new SessionPrincipal(account.id(),account.passwordChangedAt()),null,
                 List.of(new SimpleGrantedAuthority("ROLE_"+account.role()))));

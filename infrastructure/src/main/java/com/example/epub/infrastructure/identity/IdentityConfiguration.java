@@ -12,6 +12,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses=UserEntity.class)
 @EnableJpaRepositories(basePackageClasses=JpaUserRepository.class)
 public class IdentityConfiguration {
+    @Bean public com.example.epub.application.identity.AccountSecurity accountSecurity(org.springframework.jdbc.core.JdbcTemplate jdbc,
+            org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts,JdbcAccessChanges audits) {
+        return new JdbcAccountSecurity(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts,audits);
+    }
     @Bean public com.example.epub.application.identity.PasswordRecovery passwordRecovery(org.springframework.jdbc.core.JdbcTemplate jdbc,
             org.springframework.transaction.PlatformTransactionManager manager,com.example.epub.application.identity.AccountStore accounts,EmailTokens tokens,JdbcAccessChanges audits) {
         return new JdbcPasswordRecovery(jdbc,new org.springframework.transaction.support.TransactionTemplate(manager),accounts,tokens,audits);

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Implemented health, session and opt-in Google authentication endpoints. Catalog is not implemented.
+  description: Implemented health, authentication and account-security endpoints. Catalog is not implemented.
 servers:
   - url: /
 paths:
@@ -33,6 +33,117 @@ paths:
                 $ref: '#/components/schemas/Health'
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/account:
+    get:
+      operationId: getAccount
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Active account profile and login methods without credentials or provider subjects
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: updateAccount
+      security: [{SessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                displayName: {type: string, minLength: 1, maxLength: 60}
+                bio: {type: string, maxLength: 240}
+      responses:
+        '200':
+          description: Updated profile; email/role/verified/provider fields are read only
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/account/change-password:
+    post:
+      operationId: changePassword
+      security: [{SessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: {type: string, format: password, maxLength: 72, writeOnly: true}
+                newPassword: {type: string, format: password, minLength: 12, maxLength: 72, writeOnly: true}
+      responses:
+        '200':
+          description: Password changed, all old sessions revoked and a new current session established; refresh CSRF
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/account/sessions:
+    get:
+      operationId: listAccountSessions
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Up to 100 most recently active owned sessions; IDs are revocation identifiers, never cookie/session secrets
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: {$ref: '#/components/schemas/AccountSession'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/account/sessions/{id}:
+    delete:
+      operationId: revokeAccountSession
+      security: [{SessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Owned session revoked; revoking the current session also clears its cookie
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/account/google/link:
+    post:
+      operationId: beginGoogleLink
+      security: [{SessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword]
+              properties:
+                currentPassword: {type: string, format: password, maxLength: 72, writeOnly: true}
+      responses:
+        '200':
+          description: Recent password reauthentication accepted; navigate to the returned relative URL to link Google to this user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorizationUrl]
+                properties:
+                  authorizationUrl: {type: string}
+        default: {$ref: '#/components/responses/Problem'}
   /api/v1/auth/forgot-password:
     post:
       operationId: forgotPassword
@@ -310,6 +421,29 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    Account:
+      type: object
+      required: [id, email, displayName, bio, role, emailVerified, hasPassword, providers]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        email: {type: string, format: email, readOnly: true}
+        displayName: {type: string, maxLength: 60}
+        bio: {type: string, maxLength: 240}
+        role: {type: string, enum: [USER, ADMIN], readOnly: true}
+        emailVerified: {type: boolean, readOnly: true}
+        hasPassword: {type: boolean, readOnly: true}
+        providers:
+          type: array
+          readOnly: true
+          items: {type: string, enum: [PASSWORD, GOOGLE]}
+    AccountSession:
+      type: object
+      required: [id, createdAt, lastAccessAt, current]
+      properties:
+        id: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+        lastAccessAt: {type: string, format: date-time}
+        current: {type: boolean}
     EmailInput:
       type: object
       required: [email]

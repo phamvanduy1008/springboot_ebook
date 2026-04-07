@@ -42,6 +42,12 @@ class GoogleOidcIT {
         for(String part:value.split("&")) {var pair=part.split("=",2);map.put(URLDecoder.decode(pair[0],StandardCharsets.UTF_8),pair.length>1?URLDecoder.decode(pair[1],StandardCharsets.UTF_8):"");}
         return map;
     }
+    static String begin(AuthSessionIT.Browser browser,Map<String,Map<String,String>> codes,String start,String subject,String email) throws Exception {
+        var response=browser.call("GET",start,null,false);assertEquals(302,response.statusCode());
+        var data=query(URI.create(response.headers().firstValue("Location").orElseThrow()).getRawQuery());
+        String code=UUID.randomUUID().toString();data.put("subject",subject);data.put("email",email);data.put("mode","valid");codes.put(code,data);
+        return "/api/v1/login/oauth2/code/google?code="+code+"&state="+URLEncoder.encode(data.get("state"),StandardCharsets.UTF_8);
+    }
     @Test void oidcCodeExchangeAndTokenValidationUseRealHttpWithoutPersistingProviderTokens() throws Exception {
         var key=new RSAKeyGenerator(2048).keyID(UUID.randomUUID().toString()).generate();
         var wrong=new RSAKeyGenerator(2048).keyID(key.getKeyID()).generate();
@@ -93,6 +99,8 @@ class GoogleOidcIT {
                 assertEquals("http://localhost:5173/#/account",response.headers().firstValue("Location").orElseThrow());assertNotEquals(before,browser.cookie());
                 var me=browser.call("GET","/api/v1/auth/me",null,false);assertEquals(200,me.statusCode(),response.body());assertTrue(me.body().contains("USER"));
                 assertTrue(me.body().contains("\"emailVerified\":true"));
+                var profile=browser.call("GET","/api/v1/account",null,false);assertTrue(profile.body().contains("\"hasPassword\":false"));
+                browser.csrf();assertEquals(409,browser.call("POST","/api/v1/account/change-password","{\"currentPassword\":\"arbitrary password\",\"newPassword\":\"Updated password 123\"}",true).statusCode());
                 try(var resumed=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0",
                         "--app.google.enabled=false","--app.local-seed.enabled=false","--logging.level.root=WARN","--debug=false")) {
                     browser.port=((WebServerApplicationContext)resumed).getWebServer().getPort();
@@ -124,6 +132,42 @@ class GoogleOidcIT {
                     assertEquals(401,browser.call("GET","/api/v1/auth/me",null,false).statusCode(),mode);
                 }
             }
+            UUID local=UUID.randomUUID(),other=UUID.randomUUID();String password="Linking password 123",localMail=local+"@example.test",otherMail=other+"@example.test";
+            var encoder=context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class);
+            for(UUID id:List.of(local,other))jdbc.update("INSERT INTO users(id,email_normalized,password_hash,display_name) VALUES (?,?,?,'Local reader')",id,id.equals(local)?localMail:otherMail,encoder.encode(password));
+            String linkSubject=UUID.randomUUID().toString();
+            try(var browser=new AuthSessionIT.Browser();var second=new AuthSessionIT.Browser()) {
+                browser.port=port;second.port=port;
+                String collision=begin(browser,codes,"/api/v1/oauth2/authorization/google",linkSubject,localMail);
+                assertTrue(browser.call("GET",collision,null,false).headers().firstValue("Location").orElseThrow().contains("GOOGLE_LOGIN_FAILED"));
+                assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM user_identities WHERE user_id=?",Integer.class,local));
+                browser.csrf();assertEquals(200,browser.call("POST","/api/v1/auth/login","{\"email\":\""+localMail+"\",\"password\":\""+password+"\"}",true).statusCode());browser.csrf();
+                String reauth="{\"currentPassword\":\""+password+"\"}";
+                assertEquals(403,browser.call("POST","/api/v1/account/google/link",reauth,false).statusCode());
+                assertEquals(400,browser.call("POST","/api/v1/account/google/link",reauth.replace(password,"Incorrect password"),true).statusCode());
+                var link=browser.call("POST","/api/v1/account/google/link",reauth,true);assertEquals(200,link.statusCode(),link.body());
+                String start=JsonMapper.builder().build().readTree(link.body()).get("authorizationUrl").asText();
+                String callback=begin(browser,codes,start,linkSubject,"different@gmail.com");
+                assertEquals("http://localhost:5173/#/account",browser.call("GET",callback,null,false).headers().firstValue("Location").orElseThrow());
+                assertTrue(browser.call("GET","/api/v1/auth/me",null,false).body().contains(local.toString()));
+                var linked=browser.call("GET","/api/v1/account",null,false);assertTrue(linked.body().contains("GOOGLE"));assertTrue(linked.body().contains(localMail));
+                assertTrue(linked.body().contains("\"emailVerified\":false"),"Linking does not verify or change the local account email");
+                browser.csrf();assertEquals(204,browser.call("POST","/api/v1/auth/logout",null,true).statusCode());
+                var google=begin(browser,codes,"/api/v1/oauth2/authorization/google",linkSubject,"different@gmail.com");
+                browser.call("GET",google,null,false);assertTrue(browser.call("GET","/api/v1/auth/me",null,false).body().contains(local.toString()));
+                second.csrf();assertEquals(200,second.call("POST","/api/v1/auth/login","{\"email\":\""+otherMail+"\",\"password\":\""+password+"\"}",true).statusCode());second.csrf();
+                var secondLink=second.call("POST","/api/v1/account/google/link",reauth,true);assertEquals(200,secondLink.statusCode());
+                String secondStart=JsonMapper.builder().build().readTree(secondLink.body()).get("authorizationUrl").asText();
+                String steal=begin(second,codes,secondStart,linkSubject,localMail);
+                assertTrue(second.call("GET",steal,null,false).headers().firstValue("Location").orElseThrow().contains("GOOGLE_LOGIN_FAILED"));
+                assertTrue(second.call("GET","/api/v1/auth/me",null,false).body().contains(other.toString()));
+                second.csrf();assertEquals(200,second.call("POST","/api/v1/account/google/link",reauth,true).statusCode());
+                String switched=begin(second,codes,secondStart,UUID.randomUUID().toString(),"switch@gmail.com");
+                second.csrf();assertEquals(200,second.call("POST","/api/v1/auth/login","{\"email\":\""+localMail+"\",\"password\":\""+password+"\"}",true).statusCode());
+                assertTrue(second.call("GET",switched,null,false).headers().firstValue("Location").orElseThrow().contains("GOOGLE_LOGIN_FAILED"));
+                assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM user_identities WHERE user_id=?",Integer.class,other));
+            }
+            jdbc.update("DELETE FROM users WHERE id IN (?,?)",local,other);
             jdbc.update("DELETE FROM users WHERE email_normalized=?",email);
         } finally {server.stop(0);}
     }
