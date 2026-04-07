@@ -2,6 +2,26 @@
 
 ## Session authentication
 
+### Profile, password and session management
+
+`GET/PATCH /api/v1/account` reads the profile and updates only displayName/bio (60/240 characters).
+Email, role, verification and provider fields are read only; unknown patch fields are rejected.
+`POST /api/v1/account/change-password` requires currentPassword/newPassword, rotates the current
+session and revokes all old sessions/reset links. Refresh CSRF after the change. Google-only
+accounts return PASSWORD_NOT_AVAILABLE and cannot create a local password through this endpoint.
+
+`GET /api/v1/account/sessions` lists up to 100 recent owned sessions with opaque revocation IDs
+and a current marker. `DELETE /api/v1/account/sessions/{id}` revokes only an owned session;
+revoking the current session signs you out. Responses never return cookie/session secrets.
+All mutations require CSRF; password reauthentication is rate limited.
+
+To link Google to a password account, POST currentPassword to `/api/v1/account/google/link`
+then navigate to the returned authorizationUrl. The five-minute link intent is bound to the
+authenticated user and credential epoch, in addition to OIDC state/nonce/PKCE. Identity ownership,
+account switching, expiry and uniqueness are checked atomically. Linking never changes email,
+role or verification and never steals an identity already owned by another user. Unlinking,
+email changes and adding a first password to Google-only accounts are not implemented.
+
 ### Registration and email verification
 
 `POST /api/v1/auth/forgot-password` accepts an email and always returns the same neutral 202

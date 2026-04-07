@@ -77,15 +77,34 @@ public class GoogleLogin {
             var oidc=(OidcUser)authentication.getPrincipal();String email=oidc.getEmail();String domain=oidc.getClaimAsString("hd");
             boolean authoritative=Boolean.TRUE.equals(oidc.getEmailVerified()) && email!=null
                     && (email.toLowerCase(java.util.Locale.ROOT).endsWith("@gmail.com") || (domain!=null && !domain.isBlank()));
-            var account=accounts.login(oidc.getIssuer().toString(),oidc.getSubject(),email,
-                    Boolean.TRUE.equals(oidc.getEmailVerified()),authoritative,oidc.getFullName());
+            com.example.epub.domain.identity.Account account;
+            boolean linking=request.getAttribute(GoogleLinkIntent.ATTRIBUTE) instanceof GoogleLinkIntent;
+            if(linking) {
+                var intent=(GoogleLinkIntent)request.getAttribute(GoogleLinkIntent.ATTRIBUTE);
+                Object stored=request.getAttribute(CurrentAccountFilter.PRINCIPAL_ATTRIBUTE);
+                if(!intent.valid() || !Boolean.TRUE.equals(oidc.getEmailVerified()) || !(stored instanceof SessionPrincipal principal)
+                        || !principal.userId().equals(intent.userId()) || !principal.credentialEpoch().equals(intent.credentialEpoch()))throw new GoogleAccounts.Rejected();
+                account=accounts.link(intent.userId(),intent.credentialEpoch(),oidc.getIssuer().toString(),oidc.getSubject());
+            } else {
+                account=accounts.login(oidc.getIssuer().toString(),oidc.getSubject(),email,
+                        Boolean.TRUE.equals(oidc.getEmailVerified()),authoritative,oidc.getFullName());
+            }
             sessions.establish(account,request,response);
-            audits.record(AuditEvents.Action.GOOGLE_LOGIN,account.id(),account.id(),(String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
+            audits.record(linking?AuditEvents.Action.GOOGLE_LINKED:AuditEvents.Action.GOOGLE_LOGIN,account.id(),account.id(),(String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
             response.sendRedirect(frontend+GoogleAuthorizationRequests.safeReturnTo((String)request.getAttribute(GoogleAuthorizationRequests.RETURN_TO)));
         } catch(GoogleAccounts.Rejected | AccessPolicy.Denied invalid) {fail(request,response);}
     }
     private void fail(HttpServletRequest request,HttpServletResponse response) throws IOException {
         requests.clear(request,response);SecurityContextHolder.clearContext();
+        Object prior=request.getAttribute(CurrentAccountFilter.PRINCIPAL_ATTRIBUTE);
+        var existing=prior instanceof SessionPrincipal principal?store.byId(principal.userId())
+                .filter(account -> account.active() && account.passwordChangedAt().equals(principal.credentialEpoch())):java.util.Optional.<com.example.epub.domain.identity.Account>empty();
+        if(existing.isPresent() && request.getSession(false)!=null) {
+            sessions.restore(existing.get(),request,response);
+        } else {
+            new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                    .saveContext(SecurityContextHolder.createEmptyContext(),request,response);
+        }
         response.setHeader("Cache-Control","no-store");response.sendRedirect(frontend+"/login?error=GOOGLE_LOGIN_FAILED");
     }
     static class NoStoredTokens implements OAuth2AuthorizedClientRepository {

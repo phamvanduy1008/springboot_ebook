@@ -38,4 +38,20 @@ public class JdbcGoogleAccounts implements GoogleAccounts {
             });
         } catch(DataIntegrityViolationException collision) {throw new Rejected();}
     }
+    @Override public Account link(UUID user,Instant epoch,String issuer,String subject) {
+        if(!Set.of("https://accounts.google.com","accounts.google.com").contains(issuer) || subject==null || subject.isBlank() || subject.length()>255)throw new Rejected();
+        try {
+            return transactions.execute(tx -> {
+                jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",Object.class,"https://accounts.google.com:"+subject);
+                jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?,2))",Object.class,user.toString());
+                if(jdbc.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE",UUID.class,user).isEmpty())throw new Rejected();
+                var account=accounts.byId(user).filter(Account::active).orElseThrow(Rejected::new);
+                if(account.passwordHash()==null || !account.passwordChangedAt().equals(epoch))throw new Rejected();
+                var owner=jdbc.queryForList("SELECT user_id FROM user_identities WHERE provider='GOOGLE' AND issuer='https://accounts.google.com' AND subject=?",UUID.class,subject);
+                if(!owner.isEmpty()) {if(owner.getFirst().equals(user))return account;throw new Rejected();}
+                jdbc.update("INSERT INTO user_identities(user_id,provider,issuer,subject) VALUES (?,'GOOGLE','https://accounts.google.com',?)",user,subject);
+                return account;
+            });
+        } catch(DataIntegrityViolationException conflict) {throw new Rejected();}
+    }
 }

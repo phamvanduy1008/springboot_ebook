@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Every authenticated request rechecks the current database role/status and password epoch. */
 public class CurrentAccountFilter extends OncePerRequestFilter {
+    public static final String PRINCIPAL_ATTRIBUTE="auth.currentApplicationPrincipal";
     private final AccountStore accounts;
     public CurrentAccountFilter(AccountStore accounts) {this.accounts=accounts;}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
@@ -24,6 +25,7 @@ public class CurrentAccountFilter extends OncePerRequestFilter {
             if(found.isEmpty() || !found.get().active() || !found.get().passwordChangedAt().equals(principal.credentialEpoch())) {
                 if(session!=null)session.invalidate();SecurityContextHolder.clearContext();
             } else {
+                request.setAttribute(PRINCIPAL_ATTRIBUTE,principal);
                 var fresh=UsernamePasswordAuthenticationToken.authenticated(principal,null,
                         List.of(new SimpleGrantedAuthority("ROLE_"+found.get().role())));
                 context.setAuthentication(fresh);
