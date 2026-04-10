@@ -15,9 +15,7 @@
   <packaging>pom</packaging>
   <name>EPUB backend</name>
   <modules>
-    <module>domain</module>
-    <module>application</module>
-    <module>infrastructure</module>
+    <module>core</module>
     <module>migrations</module>
     <module>api</module>
     <module>worker</module>

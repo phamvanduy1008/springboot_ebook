@@ -20,12 +20,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ArchitectureTest {
     private static final Map<String, Set<String>> ALLOWED = Map.of(
-            "domain", Set.of(),
-            "application", Set.of("domain"),
-            "infrastructure", Set.of("application", "domain", "migrations"),
+            "core", Set.of("migrations"),
             "migrations", Set.of(),
-            "api", Set.of("application", "infrastructure", "domain", "migrations"),
-            "worker", Set.of("application", "infrastructure", "domain", "migrations"));
+            "api", Set.of("core"),
+            "worker", Set.of("core"));
 
     @Test
     void productionBytecodeHasNoReverseDependenciesOrPackageCycles() {
@@ -47,7 +45,7 @@ class ArchitectureTest {
     }
 
     @Test
-    void productionMavenGraphEnforcesBoundariesEvenBeforeDomainClassesExist() throws Exception {
+    void productionMavenGraphEnforcesSharedCoreAndIndependentEntrypoints() throws Exception {
         Path root = reactorRoot();
         Map<String, Set<String>> graph = new HashMap<>();
         for (String module : ALLOWED.keySet()) {
@@ -64,7 +62,7 @@ class ArchitectureTest {
                     String artifact = value(dependency, "artifactId");
                     if ("com.example.epub".equals(group)) {
                         internal.add(artifact);
-                    } else if (Set.of("domain", "application", "migrations").contains(module)) {
+                    } else if (Set.of("migrations").contains(module)) {
                         fail(module + " must remain free of external production dependencies: " + group + ":" + artifact);
                     }
                     if ("worker".equals(module)) {
@@ -85,7 +83,7 @@ class ArchitectureTest {
 
     @Test
     void guardRejectsReverseEdgesAndCycles() {
-        assertThrows(AssertionError.class, () -> validateGraph(Map.of("domain", Set.of("api"))));
+        assertThrows(AssertionError.class, () -> validateGraph(Map.of("core", Set.of("api"))));
         assertThrows(AssertionError.class, () -> validateGraph(Map.of("worker", Set.of("api"))));
         assertThrows(AssertionError.class, () -> visit("a", Map.of("a", Set.of("b"), "b", Set.of("a")), new HashSet<>(), new HashSet<>()));
     }
@@ -107,7 +105,7 @@ class ArchitectureTest {
 
     private static Path reactorRoot() {
         Path path = Path.of("").toAbsolutePath();
-        while (path != null && !Files.exists(path.resolve("domain/pom.xml"))) path = path.getParent();
+        while (path != null && !Files.exists(path.resolve("core/pom.xml"))) path = path.getParent();
         assertNotNull(path, "Run tests from a checkout of the Maven reactor");
         return path;
     }

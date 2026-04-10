@@ -153,7 +153,7 @@ The API binds to `127.0.0.1:8080` by default. Check `/actuator/health`, `/actuat
 
 ## Modules
 
-`domain` contains plain Java models, `application` defines ports, `infrastructure` supplies adapters, `migrations` holds SQL resources, and `api`/`worker` are separate entry points.
+`core` contains shared models, services, repositories and integrations. `migrations` holds Flyway SQL resources; `api` and `worker` are independently packaged entry points. Neither executable depends on the other in production. Core is a regular library JAR.
 
 ## Tests
 
