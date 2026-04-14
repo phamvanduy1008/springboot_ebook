@@ -1,6 +1,8 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.*;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -16,9 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
 public class RegistrationController {
     private final Registration registration;
-    private final AccountStore accounts;
+    private final AccountService accounts;
     private final PasswordEncoder passwords;
-    public RegistrationController(Registration registration,AccountStore accounts,PasswordEncoder passwords) {
+    public RegistrationController(Registration registration,AccountService accounts,PasswordEncoder passwords) {
         this.registration=registration;this.accounts=accounts;this.passwords=passwords;
     }
     public record Register(@NotBlank @Email @Size(max=320) String email,@NotBlank @Size(max=60) String displayName,

@@ -1,6 +1,8 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.AccountStore;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.AccountService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
@@ -14,8 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** Every authenticated request rechecks the current database role/status and password epoch. */
 public class CurrentAccountFilter extends OncePerRequestFilter {
     public static final String PRINCIPAL_ATTRIBUTE="auth.currentApplicationPrincipal";
-    private final AccountStore accounts;
-    public CurrentAccountFilter(AccountStore accounts) {this.accounts=accounts;}
+    private final AccountService accounts;
+    public CurrentAccountFilter(AccountService accounts) {this.accounts=accounts;}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
             throws ServletException,IOException {
         var context=SecurityContextHolder.getContext();var auth=context.getAuthentication();

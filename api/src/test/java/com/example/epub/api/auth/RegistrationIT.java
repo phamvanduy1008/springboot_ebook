@@ -1,7 +1,9 @@
 package com.example.epub.api.auth;
 
+import com.example.epub.core.repository.identity.AccountRepository;
+
 import com.example.epub.api.ApiApplication;
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.*;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +42,7 @@ class RegistrationIT {
         try(var context=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0",
                 "--app.local-seed.enabled=false","--logging.level.root=WARN","--debug=false");var browser=new AuthSessionIT.Browser()) {
             browser.port=((WebServerApplicationContext)context).getWebServer().getPort();browser.csrf();
-            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountStore.class);var registration=context.getBean(Registration.class);
+            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountRepository.class);var registration=context.getBean(Registration.class);
             String email="register-"+UUID.randomUUID()+"@example.test",password="Registration password 123";
             String input="{\"email\":\""+email.toUpperCase(Locale.ROOT)+"\",\"displayName\":\"Reader\",\"password\":\""+password+"\",\"role\":\"ADMIN\",\"emailVerified\":true}";
             assertEquals(403,browser.call("POST","/api/v1/auth/register",input,false).statusCode());

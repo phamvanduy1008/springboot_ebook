@@ -1,6 +1,8 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -33,10 +35,10 @@ public class GoogleLogin {
     private final SessionLogin sessions;
     private final AuditEvents audits;
     private final String frontend;
-    private final AccountStore store;
+    private final AccountService store;
     private final AuthProblems problems;
     private final GoogleAuthorizationRequests requests=new GoogleAuthorizationRequests();
-    public GoogleLogin(ClientRegistrationRepository clients,GoogleAccounts accounts,SessionLogin sessions,AuditEvents audits,Environment env,AccountStore store,AuthProblems problems) {
+    public GoogleLogin(ClientRegistrationRepository clients,GoogleAccounts accounts,SessionLogin sessions,AuditEvents audits,Environment env,AccountService store,AuthProblems problems) {
         this.clients=clients;this.accounts=accounts;this.sessions=sessions;this.audits=audits;
         frontend=env.getRequiredProperty("app.public-origin")+(env.getProperty("app.frontend.hash-routing",Boolean.class,true)?"/#":"");
         this.store=store;this.problems=problems;
@@ -77,7 +79,7 @@ public class GoogleLogin {
             var oidc=(OidcUser)authentication.getPrincipal();String email=oidc.getEmail();String domain=oidc.getClaimAsString("hd");
             boolean authoritative=Boolean.TRUE.equals(oidc.getEmailVerified()) && email!=null
                     && (email.toLowerCase(java.util.Locale.ROOT).endsWith("@gmail.com") || (domain!=null && !domain.isBlank()));
-            com.example.epub.domain.identity.Account account;
+            com.example.epub.core.model.identity.Account account;
             boolean linking=request.getAttribute(GoogleLinkIntent.ATTRIBUTE) instanceof GoogleLinkIntent;
             if(linking) {
                 var intent=(GoogleLinkIntent)request.getAttribute(GoogleLinkIntent.ATTRIBUTE);
@@ -98,7 +100,7 @@ public class GoogleLogin {
         requests.clear(request,response);SecurityContextHolder.clearContext();
         Object prior=request.getAttribute(CurrentAccountFilter.PRINCIPAL_ATTRIBUTE);
         var existing=prior instanceof SessionPrincipal principal?store.byId(principal.userId())
-                .filter(account -> account.active() && account.passwordChangedAt().equals(principal.credentialEpoch())):java.util.Optional.<com.example.epub.domain.identity.Account>empty();
+                .filter(account -> account.active() && account.passwordChangedAt().equals(principal.credentialEpoch())):java.util.Optional.<com.example.epub.core.model.identity.Account>empty();
         if(existing.isPresent() && request.getSession(false)!=null) {
             sessions.restore(existing.get(),request,response);
         } else {

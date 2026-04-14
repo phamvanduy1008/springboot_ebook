@@ -31,10 +31,21 @@ class ArchitectureTest {
                 .importPackages("com.example.epub");
         assertTrue(classes.stream().anyMatch(type -> type.getName().equals(ApiApplication.class.getName())));
         assertTrue(classes.stream().anyMatch(type -> type.getName().equals("com.example.epub.worker.WorkerApplication")));
-        noClasses().that().resideInAnyPackage("..domain..", "..application..")
-                .should().dependOnClassesThat().resideInAnyPackage("org.springframework..", "jakarta.persistence..",
-                        "javax.persistence..", "..infrastructure..", "..api..", "..worker..")
-                .allowEmptyShould(true).check(classes);
+        noClasses().that().resideInAPackage("..core..")
+                .should().dependOnClassesThat().resideInAnyPackage("..api..", "..worker..", "jakarta.servlet..", "org.springframework.web..")
+                .check(classes);
+        noClasses().that().resideInAnyPackage("..core.model..", "..core.entity..")
+                .should().dependOnClassesThat().resideInAnyPackage("..core.service..", "..core.repository..", "..core.config..", "..core.integration..")
+                .check(classes);
+        noClasses().that().resideInAPackage("..core.repository..")
+                .should().dependOnClassesThat().resideInAnyPackage("..core.service..", "..core.config..", "..core.integration..")
+                .check(classes);
+        noClasses().that().resideInAPackage("..core.service..")
+                .should().dependOnClassesThat().resideInAnyPackage("org.springframework.jdbc..", "org.springframework.data.jpa..", "jakarta.persistence..", "org.springframework.mail.javamail..")
+                .check(classes);
+        noClasses().that().resideInAPackage("..api..")
+                .should().dependOnClassesThat().resideInAnyPackage("..core.repository..", "..core.entity..", "org.springframework.jdbc..")
+                .check(classes);
         noClasses().that().resideInAPackage("..api..")
                 .should().dependOnClassesThat().resideInAPackage("..worker..")
                 .check(classes);
@@ -42,6 +53,7 @@ class ArchitectureTest {
                 .should().dependOnClassesThat().resideInAPackage("..api..")
                 .check(classes);
         slices().matching("com.example.epub.(*)..").should().beFreeOfCycles().check(classes);
+        slices().matching("com.example.epub.core.(*)..").should().beFreeOfCycles().check(classes);
     }
 
     @Test

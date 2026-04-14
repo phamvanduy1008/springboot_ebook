@@ -1,7 +1,9 @@
 package com.example.epub.api.auth;
 
+import com.example.epub.core.repository.identity.AccountRepository;
+
 import com.example.epub.api.ApiApplication;
-import com.example.epub.application.identity.AccountStore;
+import com.example.epub.core.repository.identity.AccountRepository;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -20,7 +22,7 @@ class AccountSecurityIT {
             var a=new AuthSessionIT.Browser();var other=new AuthSessionIT.Browser();var b=new AuthSessionIT.Browser()) {
             int port=((WebServerApplicationContext)context).getWebServer().getPort();a.port=port;other.port=port;b.port=port;
             a.csrf();other.csrf();b.csrf();
-            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountStore.class);
+            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountRepository.class);
             UUID id=UUID.randomUUID(),bid=UUID.randomUUID();String email="account-"+id+"@example.test",bmail="account-"+bid+"@example.test";
             String old="Original password 123",replacement="Updated password 456";
             for(UUID user:List.of(id,bid))jdbc.update("INSERT INTO users(id,email_normalized,password_hash,display_name) VALUES (?,?,?,'Reader')",user,user.equals(id)?email:bmail,new BCryptPasswordEncoder(12).encode(old));

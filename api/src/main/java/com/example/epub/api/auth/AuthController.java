@@ -1,7 +1,9 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.AccountStore;
-import com.example.epub.domain.identity.Account;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.AccountService;
+import com.example.epub.core.model.identity.Account;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -19,12 +21,12 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnProperty(name="app.persistence.enabled",havingValue="true")
 @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type=org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
 public class AuthController {
-    private final AccountStore accounts;
+    private final AccountService accounts;
     private final PasswordEncoder passwords;
     private final SessionLogin sessions;
     private final String dummyHash;
-    private final com.example.epub.application.identity.AuditEvents audits;
-    public AuthController(AccountStore accounts,PasswordEncoder passwords,SessionLogin sessions,com.example.epub.application.identity.AuditEvents audits) {
+    private final com.example.epub.core.service.identity.AuditEvents audits;
+    public AuthController(AccountService accounts,PasswordEncoder passwords,SessionLogin sessions,com.example.epub.core.service.identity.AuditEvents audits) {
         this.accounts=accounts;this.passwords=passwords;this.sessions=sessions;
         this.audits=audits;
         dummyHash=passwords.encode(UUID.randomUUID().toString());
@@ -47,11 +49,11 @@ public class AuthController {
         String encoded=found.map(Account::passwordHash).orElse(dummyHash);
         boolean valid=input.password().getBytes(StandardCharsets.UTF_8).length<=72 && passwords.matches(input.password(),encoded);
         if(found.isEmpty() || !valid || !found.get().active()) {
-            audits.record(com.example.epub.application.identity.AuditEvents.Action.LOGIN_FAILED,null,null,
+            audits.record(com.example.epub.core.service.identity.AuditEvents.Action.LOGIN_FAILED,null,null,
                     (String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
             throw new AuthFailure(401,"INVALID_CREDENTIALS");
         }
-        audits.record(com.example.epub.application.identity.AuditEvents.Action.LOGIN_SUCCEEDED,found.get().id(),found.get().id(),
+        audits.record(com.example.epub.core.service.identity.AuditEvents.Action.LOGIN_SUCCEEDED,found.get().id(),found.get().id(),
                 (String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
         sessions.establish(found.get(),request,response);return Me.from(found.get());
     }

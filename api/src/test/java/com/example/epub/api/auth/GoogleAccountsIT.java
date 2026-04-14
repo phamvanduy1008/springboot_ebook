@@ -1,8 +1,10 @@
 package com.example.epub.api.auth;
 
+import com.example.epub.core.repository.identity.AccountRepository;
+
 import com.example.epub.api.ApiApplication;
-import com.example.epub.application.identity.*;
-import com.example.epub.domain.identity.Account;
+import com.example.epub.core.service.identity.*;
+import com.example.epub.core.model.identity.Account;
 import java.util.*;
 import java.util.concurrent.*;
 import javax.sql.DataSource;
@@ -40,7 +42,7 @@ class GoogleAccountsIT {
             }
             assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM user_identities WHERE subject=?",Integer.class,subject));
             assertEquals(id,google.login("accounts.google.com",subject,"changed@example.test",true,false,"Changed").id());
-            assertEquals(email,context.getBean(AccountStore.class).byId(id).orElseThrow().email(),"Identity lookup never silently changes email");
+            assertEquals(email,context.getBean(AccountRepository.class).byId(id).orElseThrow().email(),"Identity lookup never silently changes email");
             assertThrows(GoogleAccounts.Rejected.class,() -> google.login("https://accounts.google.com",UUID.randomUUID().toString(),email,true,true,"Collision"));
             jdbc.update("UPDATE users SET status='LOCKED' WHERE id=?",id);
             assertThrows(GoogleAccounts.Rejected.class,() -> google.login("https://accounts.google.com",subject,email,true,true,"Reader"));
