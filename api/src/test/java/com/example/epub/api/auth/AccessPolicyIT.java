@@ -1,7 +1,7 @@
 package com.example.epub.api.auth;
 
 import com.example.epub.api.ApiApplication;
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.*;
 import java.util.UUID;
 import java.util.List;
 import java.util.concurrent.*;

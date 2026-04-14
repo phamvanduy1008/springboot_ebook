@@ -1,7 +1,9 @@
 package com.example.epub.api.auth;
 
+import com.example.epub.core.repository.identity.AccountRepository;
+
 import com.example.epub.api.ApiApplication;
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.*;
 import java.util.*;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
@@ -21,7 +23,7 @@ class PasswordRecoveryIT {
             var first=new AuthSessionIT.Browser();var second=new AuthSessionIT.Browser();var guest=new AuthSessionIT.Browser()) {
             int port=((WebServerApplicationContext)context).getWebServer().getPort();first.port=port;second.port=port;guest.port=port;
             first.csrf();second.csrf();guest.csrf();
-            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountStore.class);var recovery=context.getBean(PasswordRecovery.class);
+            var jdbc=context.getBean(JdbcTemplate.class);var accounts=context.getBean(AccountRepository.class);var recovery=context.getBean(PasswordRecovery.class);
             UUID id=UUID.randomUUID();String email="reset-"+id+"@example.test",oldPassword="Previous password 123",newPassword="Replacement password 456";
             String encoded=new BCryptPasswordEncoder(12).encode(oldPassword);
             jdbc.update("INSERT INTO users(id,email_normalized,password_hash,display_name) VALUES (?,?,?,'Reader')",id,email,encoded);

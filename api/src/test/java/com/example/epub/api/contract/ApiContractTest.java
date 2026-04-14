@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import com.example.epub.infrastructure.config.RuntimeProperties;
+import com.example.epub.core.config.RuntimeProperties;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;

@@ -1,6 +1,6 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.domain.identity.Account;
+import com.example.epub.core.model.identity.Account;
 import jakarta.servlet.http.*;
 import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

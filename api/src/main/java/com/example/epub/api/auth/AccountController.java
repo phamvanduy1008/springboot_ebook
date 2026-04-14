@@ -1,7 +1,9 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.*;
-import com.example.epub.domain.identity.Account;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.*;
+import com.example.epub.core.model.identity.Account;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -19,11 +21,11 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
 public class AccountController {
     private final AccountSecurity security;
-    private final AccountStore accounts;
+    private final AccountService accounts;
     private final PasswordEncoder passwords;
     private final SessionLogin login;
     private final boolean googleEnabled;
-    public AccountController(AccountSecurity security,AccountStore accounts,PasswordEncoder passwords,SessionLogin login,Environment env) {
+    public AccountController(AccountSecurity security,AccountService accounts,PasswordEncoder passwords,SessionLogin login,Environment env) {
         this.security=security;this.accounts=accounts;this.passwords=passwords;this.login=login;
         googleEnabled=env.getProperty("app.google.enabled",Boolean.class,false);
     }

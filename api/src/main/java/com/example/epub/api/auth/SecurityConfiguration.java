@@ -1,5 +1,7 @@
 package com.example.epub.api.auth;
 
+import com.example.epub.core.service.identity.AccountService;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
@@ -19,8 +21,8 @@ public class SecurityConfiguration {
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
     @Bean UserDetailsService noGeneratedUser() { return name -> {throw new UsernameNotFoundException("Not available");}; }
     @Bean SecurityFilterChain security(HttpSecurity http,AuthProblems problems,Environment environment,
-            org.springframework.beans.factory.ObjectProvider<com.example.epub.application.identity.AccountStore> accounts,
-            org.springframework.beans.factory.ObjectProvider<com.example.epub.application.identity.AuditEvents> audits,
+            org.springframework.beans.factory.ObjectProvider<com.example.epub.core.service.identity.AccountService> accounts,
+            org.springframework.beans.factory.ObjectProvider<com.example.epub.core.service.identity.AuditEvents> audits,
             org.springframework.beans.factory.ObjectProvider<GoogleLogin> google) throws Exception {
         http.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
@@ -31,7 +33,7 @@ public class SecurityConfiguration {
                 .logout(logout -> logout.logoutUrl("/api/v1/auth/logout").invalidateHttpSession(true).clearAuthentication(true)
                     .deleteCookies("SESSION").logoutSuccessHandler((request,response,authentication) -> {
                         if(authentication!=null && authentication.getPrincipal() instanceof SessionPrincipal principal && audits.getIfAvailable()!=null)
-                            audits.getObject().record(com.example.epub.application.identity.AuditEvents.Action.LOGOUT,principal.userId(),principal.userId(),
+                            audits.getObject().record(com.example.epub.core.service.identity.AuditEvents.Action.LOGOUT,principal.userId(),principal.userId(),
                                 (String)request.getAttribute(com.example.epub.api.RequestIdFilter.ATTRIBUTE));
                         response.setHeader("Cache-Control","no-store");response.setStatus(204);
                     }));

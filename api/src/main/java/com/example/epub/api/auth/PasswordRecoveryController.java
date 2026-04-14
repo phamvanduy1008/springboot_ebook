@@ -1,6 +1,8 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.*;
+import com.example.epub.core.service.identity.AccountService;
+
+import com.example.epub.core.service.identity.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -15,10 +17,10 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
 public class PasswordRecoveryController {
     private final PasswordRecovery recovery;
-    private final AccountStore accounts;
+    private final AccountService accounts;
     private final PasswordEncoder passwords;
     private final RegistrationController registration;
-    public PasswordRecoveryController(PasswordRecovery recovery,AccountStore accounts,PasswordEncoder passwords,RegistrationController registration) {
+    public PasswordRecoveryController(PasswordRecovery recovery,AccountService accounts,PasswordEncoder passwords,RegistrationController registration) {
         this.recovery=recovery;this.accounts=accounts;this.passwords=passwords;this.registration=registration;
     }
     public record Reset(@NotBlank @Pattern(regexp="[A-Za-z0-9_-]{43}") String token,@NotBlank @Size(min=12,max=72) String password) {

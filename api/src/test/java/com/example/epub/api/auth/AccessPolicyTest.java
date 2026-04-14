@@ -1,7 +1,7 @@
 package com.example.epub.api.auth;
 
-import com.example.epub.application.identity.AccessPolicy;
-import com.example.epub.domain.identity.Account;
+import com.example.epub.core.service.identity.AccessPolicy;
+import com.example.epub.core.model.identity.Account;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
