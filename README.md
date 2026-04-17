@@ -155,6 +155,23 @@ The API binds to `127.0.0.1:8080` by default. Check `/actuator/health`, `/actuat
 
 `core` contains shared models, services, repositories and integrations. `migrations` holds Flyway SQL resources; `api` and `worker` are independently packaged entry points. Neither executable depends on the other in production. Core is a regular library JAR.
 
+The API uses Spring MVC with a layered Controller → Service → Repository design:
+
+```text
+api/       controller/auth, dto/auth, dto/common, security, exception, filter, config
+core/      service/identity, repository/identity, entity/identity, model/identity,
+           integration/mail, config
+worker/    headless entry point using the same core services
+migrations/Flyway SQL resources (unchanged by the architecture refactor)
+contracts/openapi.yaml
+```
+
+Controllers handle HTTP validation and DTOs; security coordinates password/OIDC authentication and sessions. Core services own business rules and transaction boundaries. Repositories own SQL/JPA and database locks; mail delivery lives in an integration gateway. Core has no servlet or API dependencies, and entities are not returned as HTTP responses. Architecture tests enforce these boundaries.
+
+Two deprecated records under `api.auth` are deserialization bridges for JDBC sessions written before the package move. Runtime code uses `api.security`; retain the bridges while older sessions or pending Google link requests may still exist. A fixture captured before the move checks this compatibility.
+
+Use `tools/Test-LocalDatabase.ps1 -Clean -MailpitBin <path-to-mailpit.exe>` for a clean reactor verification against an isolated native database and mail server.
+
 ## Tests
 
 `verify` runs unit, architecture and packaged-process smoke tests.

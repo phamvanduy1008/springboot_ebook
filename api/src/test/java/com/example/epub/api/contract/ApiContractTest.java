@@ -1,5 +1,8 @@
 package com.example.epub.api.contract;
 
+import com.example.epub.api.dto.common.PageQuery;
+import com.example.epub.api.dto.common.PageResult;
+
 import com.example.epub.api.ApiApplication;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;

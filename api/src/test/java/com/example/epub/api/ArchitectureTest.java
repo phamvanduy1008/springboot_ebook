@@ -31,6 +31,13 @@ class ArchitectureTest {
                 .importPackages("com.example.epub");
         assertTrue(classes.stream().anyMatch(type -> type.getName().equals(ApiApplication.class.getName())));
         assertTrue(classes.stream().anyMatch(type -> type.getName().equals("com.example.epub.worker.WorkerApplication")));
+        assertEquals(Set.of("SessionPrincipal", "GoogleLinkIntent"), classes.stream()
+                .filter(type -> type.getPackageName().equals("com.example.epub.api.auth"))
+                .map(type -> type.getSimpleName()).collect(java.util.stream.Collectors.toSet()),
+                "The old auth package contains only persistent-session compatibility records");
+        noClasses().that().resideOutsideOfPackage("com.example.epub.api.auth")
+                .should().dependOnClassesThat().resideInAPackage("com.example.epub.api.auth")
+                .check(classes);
         noClasses().that().resideInAPackage("..core..")
                 .should().dependOnClassesThat().resideInAnyPackage("..api..", "..worker..", "jakarta.servlet..", "org.springframework.web..")
                 .check(classes);
@@ -46,6 +53,9 @@ class ArchitectureTest {
         noClasses().that().resideInAPackage("..api..")
                 .should().dependOnClassesThat().resideInAnyPackage("..core.repository..", "..core.entity..", "org.springframework.jdbc..")
                 .check(classes);
+        noClasses().that().resideInAPackage("..api.dto..")
+                .should().dependOnClassesThat().resideInAnyPackage("..api.controller..", "..api.security..", "..api.config..")
+                .check(classes);
         noClasses().that().resideInAPackage("..api..")
                 .should().dependOnClassesThat().resideInAPackage("..worker..")
                 .check(classes);
@@ -54,6 +64,7 @@ class ArchitectureTest {
                 .check(classes);
         slices().matching("com.example.epub.(*)..").should().beFreeOfCycles().check(classes);
         slices().matching("com.example.epub.core.(*)..").should().beFreeOfCycles().check(classes);
+        slices().matching("com.example.epub.api.(*)..").should().beFreeOfCycles().check(classes);
     }
 
     @Test

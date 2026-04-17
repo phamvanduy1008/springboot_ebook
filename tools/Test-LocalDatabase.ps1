@@ -1,7 +1,8 @@
 param(
     [string]$PostgresBin = 'C:\Program Files\PostgreSQL\18\bin',
     [ValidateRange(1024,65535)][int]$Port = 55434,
-    [string]$MailpitBin = $env:MAILPIT_BIN
+    [string]$MailpitBin = $env:MAILPIT_BIN,
+    [switch]$Clean
 )
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path -Parent $PSScriptRoot
@@ -49,7 +50,8 @@ try {
     $env:DB_URL="jdbc:postgresql://127.0.0.1:$Port/epub_identity_test";$env:DB_USERNAME='epub_test';$env:DB_PASSWORD=$password;$env:EPUB_IDENTITY_DB_TEST='true'
     Push-Location $repoRoot
     try {
-        & .\mvnw.cmd -B -ntp verify; if ($LASTEXITCODE -ne 0) {throw 'Database verify failed'}
+        $mavenGoals=if($Clean) {@('clean','verify')} else {@('verify')}
+        & .\mvnw.cmd -B -ntp @mavenGoals; if ($LASTEXITCODE -ne 0) {throw 'Database verify failed'}
         $listener=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
         $listener.Start();$apiPort=$listener.LocalEndpoint.Port;$listener.Stop()
         $java=Join-Path $env:JAVA_HOME 'bin/java.exe'
