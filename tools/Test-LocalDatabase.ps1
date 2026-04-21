@@ -50,7 +50,8 @@ try {
     $env:DB_URL="jdbc:postgresql://127.0.0.1:$Port/epub_identity_test";$env:DB_USERNAME='epub_test';$env:DB_PASSWORD=$password;$env:EPUB_IDENTITY_DB_TEST='true'
     Push-Location $repoRoot
     try {
-        $mavenGoals=if($Clean) {@('clean','verify')} else {@('verify')}
+        $mavenGoals=@('verify')
+        if($Clean) {$mavenGoals=@('clean','verify')}
         & .\mvnw.cmd -B -ntp @mavenGoals; if ($LASTEXITCODE -ne 0) {throw 'Database verify failed'}
         $listener=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
         $listener.Start();$apiPort=$listener.LocalEndpoint.Port;$listener.Stop()
