@@ -1,5 +1,15 @@
 # springboot_ebook
 
+## Catalog schema
+
+Catalog metadata uses UUID identities, distinct visibility/publication/serial states and revision counters.
+Book version pointers are composite foreign keys and require the same book's READY version. READY versions
+and their artifact identities are immutable. Stored-object rows describe hashes, sizes, types and keys;
+they do not contain files. Actual file verification and spine/TOC invariants belong to the future ingest worker.
+There is no upload/publish endpoint or runtime catalog seed in this schema step. A new installation remains empty.
+Vietnamese search text is folded by the versioned `catalog_fold_v1` function, including đ/Đ. The GIN index supports
+token search; it does not make arbitrary substring LIKE queries indexed.
+
 ## Session authentication
 
 ### Profile, password and session management
