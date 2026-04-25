@@ -196,7 +196,9 @@ The script creates an isolated loopback cluster with temporary credentials, test
 
 ## API contract
 
-`contracts/openapi.yaml` is the source contract for the implemented health and session authentication endpoints. Catalog endpoints are not implemented yet.
+`contracts/openapi.yaml` is the source contract for health, session authentication and admin catalog endpoints. Admins manage public book metadata, categories, authors and draft version records under `/api/v1/admin`. Mutations require CSRF and updates require the current revision; private books are outside this API. Counts include only published public books with a READY published version.
+
+Creating or cloning a book creates an UPLOADING version with no artifacts. Upload, ingestion and publication are not exposed yet. READY metadata fixtures exist only in integration tests; they do not verify or provide readable EPUB files.
 
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 
