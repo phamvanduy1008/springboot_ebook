@@ -2,16 +2,17 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Implemented health, authentication and account-security endpoints. Catalog is not implemented.
+  description: Implemented health, authentication, account-security and admin catalog metadata endpoints. Public discovery
+    follows separately; no upload or publishing endpoint.
 servers:
-  - url: /
+- url: /
 paths:
   /api/v1/health:
     get:
       operationId: getHealth
       summary: Aggregate application health without component details
       parameters:
-        - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/RequestId'
       responses:
         '200':
           description: Application is healthy
@@ -36,19 +37,23 @@ paths:
   /api/v1/account:
     get:
       operationId: getAccount
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       responses:
         '200':
           description: Active account profile and login methods without credentials or provider subjects
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Account'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/Account'
+        default:
+          $ref: '#/components/responses/Problem'
     patch:
       operationId: updateAccount
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
@@ -58,97 +63,136 @@ paths:
               minProperties: 1
               additionalProperties: false
               properties:
-                displayName: {type: string, minLength: 1, maxLength: 60}
-                bio: {type: string, maxLength: 240}
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                bio:
+                  type: string
+                  maxLength: 240
       responses:
         '200':
           description: Updated profile; email/role/verified/provider fields are read only
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Account'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/Account'
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/account/change-password:
     post:
       operationId: changePassword
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [currentPassword, newPassword]
+              required:
+              - currentPassword
+              - newPassword
               properties:
-                currentPassword: {type: string, format: password, maxLength: 72, writeOnly: true}
-                newPassword: {type: string, format: password, minLength: 12, maxLength: 72, writeOnly: true}
+                currentPassword:
+                  type: string
+                  format: password
+                  maxLength: 72
+                  writeOnly: true
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 12
+                  maxLength: 72
+                  writeOnly: true
       responses:
         '200':
           description: Password changed, all old sessions revoked and a new current session established; refresh CSRF
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Account'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/Account'
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/account/sessions:
     get:
       operationId: listAccountSessions
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       responses:
         '200':
-          description: Up to 100 most recently active owned sessions; IDs are revocation identifiers, never cookie/session secrets
+          description: Up to 100 most recently active owned sessions; IDs are revocation identifiers, never cookie/session
+            secrets
           content:
             application/json:
               schema:
                 type: array
                 maxItems: 100
-                items: {$ref: '#/components/schemas/AccountSession'}
-        default: {$ref: '#/components/responses/Problem'}
+                items:
+                  $ref: '#/components/schemas/AccountSession'
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/account/sessions/{id}:
     delete:
       operationId: revokeAccountSession
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       parameters:
-        - $ref: '#/components/parameters/Csrf'
-        - name: id
-          in: path
-          required: true
-          schema: {type: string, format: uuid}
+      - $ref: '#/components/parameters/Csrf'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '204':
           description: Owned session revoked; revoking the current session also clears its cookie
-        default: {$ref: '#/components/responses/Problem'}
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/account/google/link:
     post:
       operationId: beginGoogleLink
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [currentPassword]
+              required:
+              - currentPassword
               properties:
-                currentPassword: {type: string, format: password, maxLength: 72, writeOnly: true}
+                currentPassword:
+                  type: string
+                  format: password
+                  maxLength: 72
+                  writeOnly: true
       responses:
         '200':
-          description: Recent password reauthentication accepted; navigate to the returned relative URL to link Google to this user
+          description: Recent password reauthentication accepted; navigate to the returned relative URL to link Google to
+            this user
           content:
             application/json:
               schema:
                 type: object
-                required: [authorizationUrl]
+                required:
+                - authorizationUrl
                 properties:
-                  authorizationUrl: {type: string}
-        default: {$ref: '#/components/responses/Problem'}
+                  authorizationUrl:
+                    type: string
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/auth/forgot-password:
     post:
       operationId: forgotPassword
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
@@ -164,17 +208,27 @@ paths:
     post:
       operationId: resetPassword
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [token, password]
+              required:
+              - token
+              - password
               properties:
-                token: {type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true}
-                password: {type: string, format: password, minLength: 12, maxLength: 72, writeOnly: true}
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                  writeOnly: true
+                password:
+                  type: string
+                  format: password
+                  minLength: 12
+                  maxLength: 72
+                  writeOnly: true
       responses:
         '204':
           description: Password replaced; all application sessions for the account revoked
@@ -184,18 +238,32 @@ paths:
     post:
       operationId: register
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, displayName, password]
+              required:
+              - email
+              - displayName
+              - password
               properties:
-                email: {type: string, format: email, maxLength: 320}
-                displayName: {type: string, minLength: 1, maxLength: 60}
-                password: {type: string, format: password, minLength: 12, maxLength: 72, writeOnly: true}
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+                password:
+                  type: string
+                  format: password
+                  minLength: 12
+                  maxLength: 72
+                  writeOnly: true
       responses:
         '202':
           $ref: '#/components/responses/EmailAccepted'
@@ -205,7 +273,7 @@ paths:
     post:
       operationId: resendVerification
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
@@ -221,7 +289,7 @@ paths:
     post:
       operationId: verifyEmail
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
@@ -243,25 +311,33 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [password, google]
+                required:
+                - password
+                - google
                 properties:
-                  password: {type: boolean}
-                  google: {type: boolean}
+                  password:
+                    type: boolean
+                  google:
+                    type: boolean
   /api/v1/oauth2/authorization/google:
     get:
       operationId: beginGoogleLogin
       summary: Navigate the browser here; Google login must be enabled
       parameters:
-        - name: returnTo
-          in: query
-          schema: {type: string, maxLength: 512}
-          description: Internal path only; unsafe values fall back to the site root
+      - name: returnTo
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+        description: Internal path only; unsafe values fall back to the site root
       responses:
         '302':
           description: Redirect to Google with session-bound state, nonce and PKCE challenge
           headers:
             Location:
-              schema: {type: string, format: uri}
+              schema:
+                type: string
+                format: uri
         '404':
           $ref: '#/components/responses/Problem'
         default:
@@ -271,21 +347,27 @@ paths:
       operationId: googleLoginCallback
       summary: OIDC protocol callback; not a frontend JSON API
       parameters:
-        - name: code
-          in: query
-          schema: {type: string}
-        - name: state
-          in: query
-          schema: {type: string}
-        - name: error
-          in: query
-          schema: {type: string}
+      - name: code
+        in: query
+        schema:
+          type: string
+      - name: state
+        in: query
+        schema:
+          type: string
+      - name: error
+        in: query
+        schema:
+          type: string
       responses:
         '302':
-          description: Redirect to configured frontend after validated login, or login page with allowlisted generic failure code
+          description: Redirect to configured frontend after validated login, or login page with allowlisted generic failure
+            code
           headers:
             Location:
-              schema: {type: string, format: uri}
+              schema:
+                type: string
+                format: uri
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/auth/csrf:
@@ -299,10 +381,14 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [headerName, token]
+                required:
+                - headerName
+                - token
                 properties:
-                  headerName: {type: string}
-                  token: {type: string}
+                  headerName:
+                    type: string
+                  token:
+                    type: string
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/auth/login:
@@ -310,17 +396,26 @@ paths:
       operationId: login
       summary: Authenticate with email/password; rotate session and refresh CSRF afterward
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required:
+              - email
+              - password
               properties:
-                email: {type: string, format: email, maxLength: 320}
-                password: {type: string, format: password, maxLength: 72, writeOnly: true}
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                password:
+                  type: string
+                  format: password
+                  maxLength: 72
+                  writeOnly: true
       responses:
         '200':
           description: Logged in; HttpOnly SameSite=Lax session cookie, Secure in production
@@ -333,7 +428,8 @@ paths:
   /api/v1/auth/me:
     get:
       operationId: getCurrentUser
-      security: [{SessionCookie: []}]
+      security:
+      - SessionCookie: []
       responses:
         '200':
           description: Current active account, without credentials or session secrets
@@ -347,12 +443,465 @@ paths:
     post:
       operationId: logout
       parameters:
-        - $ref: '#/components/parameters/Csrf'
+      - $ref: '#/components/parameters/Csrf'
       responses:
         '204':
           description: Session invalidated and cookie expired; refresh CSRF before next login
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/admin/books:
+    get:
+      operationId: listAdminBooks
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: year
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 9999
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - updatedAt,desc
+          - createdAt,desc
+          - title,asc
+          - title,desc
+          - author,asc
+          default: updatedAt,desc
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - HIDDEN
+    post:
+      operationId: createCatalogDraft
+      security:
+      - SessionCookie: []
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogBookInput'
+  /api/v1/admin/books/{id}:
+    get:
+      operationId: getAdminBook
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateCatalogMetadata
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Updated metadata; revision is required, unknown fields are rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogBookInput'
+    delete:
+      operationId: deleteCatalogMetadata
+      security:
+      - SessionCookie: []
+      responses:
+        '204':
+          description: Soft-deleted book; no file deletion
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/admin/books/{id}/clone:
+    post:
+      operationId: cloneCatalogMetadata
+      security:
+      - SessionCookie: []
+      responses:
+        '201':
+          description: New UUID/draft; no READY artifact, ownership or rights copied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/admin/books/{id}/versions:
+    post:
+      operationId: createCatalogVersionDraft
+      security:
+      - SessionCookie: []
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogVersion'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/admin/books/{id}/hide:
+    post:
+      operationId: hideCatalogBook
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/admin/categories:
+    get:
+      operationId: listAdminCategories
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogCategoryPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    post:
+      operationId: createCatalogCategory
+      security:
+      - SessionCookie: []
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogCategory'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCategoryInput'
+  /api/v1/admin/categories/{id}:
+    patch:
+      operationId: updateCatalogCategory
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Updated metadata; revision is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogCategory'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCategoryInput'
+    delete:
+      operationId: deleteCatalogCategory
+      security:
+      - SessionCookie: []
+      responses:
+        '204':
+          description: Successful response
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/admin/authors:
+    get:
+      operationId: listAdminAuthors
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogAuthorPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    post:
+      operationId: createCatalogAuthor
+      security:
+      - SessionCookie: []
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogAuthor'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogAuthorInput'
+  /api/v1/admin/authors/{id}:
+    patch:
+      operationId: updateCatalogAuthor
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Updated metadata; revision is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogAuthor'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogAuthorInput'
+    delete:
+      operationId: deleteCatalogAuthor
+      security:
+      - SessionCookie: []
+      responses:
+        '204':
+          description: Successful response
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogRevisionInput'
 components:
   securitySchemes:
     SessionCookie:
@@ -365,7 +914,8 @@ components:
       in: header
       required: true
       description: Token from GET /api/v1/auth/csrf, tied to the session cookie
-      schema: {type: string}
+      schema:
+        type: string
     RequestId:
       name: X-Request-ID
       in: header
@@ -391,7 +941,8 @@ components:
     Sort:
       name: sort
       in: query
-      description: 'field,asc or field,desc. Endpoint-specific allowlist; id,asc is appended as tie-breaker. Reserved for future list endpoints.'
+      description: field,asc or field,desc. Endpoint-specific allowlist; id,asc is appended as tie-breaker. Reserved for future
+        list endpoints.
       schema:
         type: string
         default: id,asc
@@ -408,9 +959,11 @@ components:
         application/json:
           schema:
             type: object
-            required: [message]
+            required:
+            - message
             properties:
-              message: {type: string}
+              message:
+                type: string
     Problem:
       description: Consistent error response without stack traces or rejected input values
       headers:
@@ -423,57 +976,131 @@ components:
   schemas:
     Account:
       type: object
-      required: [id, email, displayName, bio, role, emailVerified, hasPassword, providers]
+      required:
+      - id
+      - email
+      - displayName
+      - bio
+      - role
+      - emailVerified
+      - hasPassword
+      - providers
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        email: {type: string, format: email, readOnly: true}
-        displayName: {type: string, maxLength: 60}
-        bio: {type: string, maxLength: 240}
-        role: {type: string, enum: [USER, ADMIN], readOnly: true}
-        emailVerified: {type: boolean, readOnly: true}
-        hasPassword: {type: boolean, readOnly: true}
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        displayName:
+          type: string
+          maxLength: 60
+        bio:
+          type: string
+          maxLength: 240
+        role:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+          readOnly: true
+        emailVerified:
+          type: boolean
+          readOnly: true
+        hasPassword:
+          type: boolean
+          readOnly: true
         providers:
           type: array
           readOnly: true
-          items: {type: string, enum: [PASSWORD, GOOGLE]}
+          items:
+            type: string
+            enum:
+            - PASSWORD
+            - GOOGLE
     AccountSession:
       type: object
-      required: [id, createdAt, lastAccessAt, current]
+      required:
+      - id
+      - createdAt
+      - lastAccessAt
+      - current
       properties:
-        id: {type: string, format: uuid}
-        createdAt: {type: string, format: date-time}
-        lastAccessAt: {type: string, format: date-time}
-        current: {type: boolean}
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        lastAccessAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
     EmailInput:
       type: object
-      required: [email]
+      required:
+      - email
       properties:
-        email: {type: string, format: email, maxLength: 320}
+        email:
+          type: string
+          format: email
+          maxLength: 320
     TokenInput:
       type: object
-      required: [token]
+      required:
+      - token
       properties:
-        token: {type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true}
+        token:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          writeOnly: true
     Me:
       type: object
-      required: [id, email, displayName, role, emailVerified]
+      required:
+      - id
+      - email
+      - displayName
+      - role
+      - emailVerified
       properties:
-        id: {type: string, format: uuid}
-        email: {type: string, format: email}
-        displayName: {type: string, maxLength: 60}
-        role: {type: string, enum: [USER, ADMIN]}
-        emailVerified: {type: boolean}
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          maxLength: 60
+        role:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+        emailVerified:
+          type: boolean
     Health:
       type: object
       additionalProperties: false
-      required: [status]
+      required:
+      - status
       properties:
         status:
           type: string
     Problem:
       type: object
       additionalProperties: false
-      required: [type, title, status, code, detail, requestId, fieldErrors]
+      required:
+      - type
+      - title
+      - status
+      - code
+      - detail
+      - requestId
+      - fieldErrors
       properties:
         type:
           type: string
@@ -499,7 +1126,11 @@ components:
       description: Reusable envelope for future list endpoints; items are mapped DTOs, never entities.
       type: object
       additionalProperties: false
-      required: [items, page, size, total]
+      required:
+      - items
+      - page
+      - size
+      - total
       properties:
         items:
           type: array
@@ -515,3 +1146,400 @@ components:
           type: integer
           format: int64
           minimum: 0
+    CatalogCategory:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - slug
+      - groupName
+      - description
+      - color
+      - sortOrder
+      - revision
+      - bookCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 120
+        groupName:
+          type: string
+          maxLength: 40
+        description:
+          type: string
+          maxLength: 2000
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+        sortOrder:
+          type: integer
+        revision:
+          type: integer
+          format: int64
+        bookCount:
+          type: integer
+          format: int64
+    CatalogAuthor:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - slug
+      - biography
+      - revision
+      - bookCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 200
+        biography:
+          type: string
+          maxLength: 4000
+        revision:
+          type: integer
+          format: int64
+        bookCount:
+          type: integer
+          format: int64
+    CatalogVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - versionNo
+      - state
+      - rightsNote
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+        state:
+          type: string
+          enum:
+          - UPLOADING
+          - PROCESSING
+          - READY
+          - FAILED
+        rightsNote:
+          type:
+          - string
+          - 'null'
+          maxLength: 4000
+        createdAt:
+          type: string
+          format: date-time
+    AdminCatalogBook:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - title
+      - authorDisplay
+      - slug
+      - summary
+      - description
+      - language
+      - isTranslation
+      - publicationYear
+      - serialStatus
+      - status
+      - visibility
+      - revision
+      - updatedAt
+      - versionNo
+      - versionState
+      - categories
+      - authors
+      - tags
+      - versions
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 300
+        authorDisplay:
+          type: string
+          maxLength: 500
+        slug:
+          type: string
+          maxLength: 350
+        summary:
+          type: string
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 20000
+        language:
+          type:
+          - string
+          - 'null'
+          maxLength: 35
+        isTranslation:
+          type: boolean
+        publicationYear:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        serialStatus:
+          type: string
+          enum:
+          - UNKNOWN
+          - ONGOING
+          - COMPLETED
+          - HIATUS
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - HIDDEN
+          - DELETED
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+        revision:
+          type: integer
+          format: int64
+        updatedAt:
+          type: string
+          format: date-time
+        versionNo:
+          type: integer
+        versionState:
+          type:
+          - string
+          - 'null'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCategory'
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogAuthor'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogVersion'
+    AdminCatalogPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCatalogBook'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    CatalogCategoryPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCategory'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    CatalogAuthorPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogAuthor'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    CatalogBookInput:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      - authorDisplay
+      properties:
+        title:
+          type: string
+          maxLength: 300
+        authorDisplay:
+          type: string
+          maxLength: 500
+        slug:
+          type: string
+          maxLength: 350
+        summary:
+          type: string
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 20000
+        language:
+          type:
+          - string
+          - 'null'
+          maxLength: 35
+        isTranslation:
+          type: boolean
+        publicationYear:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        serialStatus:
+          type: string
+          enum:
+          - UNKNOWN
+          - ONGOING
+          - COMPLETED
+          - HIATUS
+        revision:
+          type: integer
+          format: int64
+        authorIds:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        categoryIds:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        tags:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            maxLength: 80
+        rightsNote:
+          type: string
+          maxLength: 4000
+    CatalogCategoryInput:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 120
+        groupName:
+          type: string
+          maxLength: 40
+        description:
+          type: string
+          maxLength: 2000
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+        sortOrder:
+          type: integer
+        revision:
+          type: integer
+          format: int64
+    CatalogAuthorInput:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 200
+        biography:
+          type: string
+          maxLength: 4000
+        revision:
+          type: integer
+          format: int64
+    CatalogRevisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - revision
+      properties:
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        rightsNote:
+          type: string
+          maxLength: 4000
