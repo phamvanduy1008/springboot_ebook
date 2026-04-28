@@ -200,6 +200,8 @@ The script creates an isolated loopback cluster with temporary credentials, test
 
 Creating or cloning a book creates an UPLOADING version with no artifacts. Upload, ingestion and publication are not exposed yet. READY metadata fixtures exist only in integration tests; they do not verify or provide readable EPUB files.
 
+Guests can query `/api/v1/books`, `/books/{id}`, `/books/filters`, `/categories`, `/categories/{id}/books` and `/home`. Public results consistently require PUBLIC/PUBLISHED and a READY published pointer. Search folds Vietnamese accents and đ/Đ. Sort fields are allowlisted and UUID breaks ties. Home featured means recently updated; suggestions and trending are empty until their real sources are available. No reader or file URL is claimed from metadata alone.
+
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 
 For local browser development, proxy `/api` to the backend and use relative URLs. Cross-origin credential access is not enabled globally.

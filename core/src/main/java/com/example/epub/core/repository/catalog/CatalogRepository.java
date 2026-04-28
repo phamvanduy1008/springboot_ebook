@@ -73,4 +73,10 @@ public class CatalogRepository {
             (org.springframework.jdbc.core.RowCallbackHandler)row -> tags.computeIfAbsent(row.getObject("book_id",UUID.class),key -> new ArrayList<>()).add(row.getString("tag")));
         return books.stream().map(book -> new BookView(book,categories.getOrDefault(book.id(),List.of()),authors.getOrDefault(book.id(),List.of()),tags.getOrDefault(book.id(),List.of()),includeVersions?versions(book.id()):List.of())).toList();
     }
+
+    public List<String> groups() {return jdbc.queryForList("SELECT DISTINCT group_name FROM categories ORDER BY group_name",String.class);}
+    public List<Integer> years() {return jdbc.queryForList("SELECT DISTINCT b.publication_year FROM books b WHERE "+PUBLIC+" AND b.publication_year IS NOT NULL ORDER BY b.publication_year DESC",Integer.class);}
+    public List<Author> publicAuthors(int limit) {
+        return jdbc.query("SELECT a.*,count(DISTINCT b.id) AS book_count FROM authors a JOIN book_authors ba ON ba.author_id=a.id JOIN books b ON b.id=ba.book_id WHERE "+PUBLIC+" GROUP BY a.id ORDER BY book_count DESC,a.id LIMIT ?",this::mapAuthor,limit);
+    }
 }

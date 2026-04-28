@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Implemented health, authentication, account-security and admin catalog metadata endpoints. Public discovery
-    follows separately; no upload or publishing endpoint.
+  description: Authentication, account security, admin metadata and public discovery. Public books require PUBLIC/PUBLISHED
+    and a READY published version; no file or publishing API.
 servers:
 - url: /
 paths:
@@ -902,6 +902,245 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CatalogRevisionInput'
+  /api/v1/books:
+    get:
+      operationId: listPublicBooks
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCatalogPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: year
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 9999
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - updatedAt,desc
+          - createdAt,desc
+          - title,asc
+          - title,desc
+          - author,asc
+          default: updatedAt,desc
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/v1/books/{id}:
+    get:
+      operationId: getPublicBook
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCatalogBook'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/books/filters:
+    get:
+      operationId: getCatalogFilters
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogFilters'
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/categories:
+    get:
+      operationId: listPublicCategories
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogCategoryPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: group
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 40
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - bookCount,desc
+          - name,asc
+          - sortOrder,asc
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/v1/categories/{id}:
+    get:
+      operationId: getPublicCategory
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogCategory'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/categories/{id}/books:
+    get:
+      operationId: listCategoryBooks
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCatalogPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: year
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 9999
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - updatedAt,desc
+          - createdAt,desc
+          - title,asc
+          - title,desc
+          - author,asc
+          default: updatedAt,desc
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/v1/home:
+    get:
+      operationId: getCatalogHome
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogHome'
+        default:
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     SessionCookie:
@@ -1543,3 +1782,169 @@ components:
         rightsNote:
           type: string
           maxLength: 4000
+    PublicCatalogBook:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - title
+      - authorDisplay
+      - slug
+      - summary
+      - description
+      - language
+      - isTranslation
+      - publicationYear
+      - serialStatus
+      - updatedAt
+      - categories
+      - authors
+      - tags
+      - coverUrl
+      - readerAvailable
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 300
+        authorDisplay:
+          type: string
+          maxLength: 500
+        slug:
+          type: string
+          maxLength: 350
+        summary:
+          type: string
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 20000
+        language:
+          type:
+          - string
+          - 'null'
+          maxLength: 35
+        isTranslation:
+          type: boolean
+        publicationYear:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        serialStatus:
+          type: string
+          enum:
+          - UNKNOWN
+          - ONGOING
+          - COMPLETED
+          - HIATUS
+        updatedAt:
+          type: string
+          format: date-time
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCategory'
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogAuthor'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+        coverUrl:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        readerAvailable:
+          type: boolean
+          const: false
+    PublicCatalogPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    CatalogHome:
+      type: object
+      additionalProperties: false
+      required:
+      - featured
+      - trending
+      - recent
+      - suggestions
+      - authors
+      - categories
+      - bookCount
+      - categoryCount
+      properties:
+        featured:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+        trending:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogAuthor'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCategory'
+        bookCount:
+          type: integer
+          format: int64
+        categoryCount:
+          type: integer
+          format: int64
+    CatalogFilters:
+      type: object
+      additionalProperties: false
+      required:
+      - years
+      - groups
+      properties:
+        years:
+          type: array
+          items:
+            type: integer
+            format: int64
+        groups:
+          type: array
+          items:
+            type: string
+            maxLength: 40
