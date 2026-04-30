@@ -11,7 +11,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 @AutoConfiguration(after=IdentityConfiguration.class)
 @ConditionalOnProperty(name="app.persistence.enabled",havingValue="true")
 public class CatalogConfiguration {
-    @Bean public PublicCatalogService publicCatalogService(CatalogRepository catalog,PlatformTransactionManager manager) {return new PublicCatalogService(catalog,manager);}
+    @Bean public MetricsRepository metricsRepository(JdbcTemplate jdbc) {return new MetricsRepository(jdbc);}
+    @Bean public RankingService rankingService(CatalogRepository catalog,MetricsRepository metrics,AccountService accounts,PlatformTransactionManager manager) {return new RankingService(catalog,metrics,accounts,java.time.Clock.systemUTC(),manager);}
+    @Bean public PublicCatalogService publicCatalogService(CatalogRepository catalog,RankingService rankings,PlatformTransactionManager manager) {return new PublicCatalogService(catalog,rankings,manager);}
     @Bean public CatalogRepository catalogRepository(JdbcTemplate jdbc) {return new CatalogRepository(jdbc);}
     @Bean public CatalogAdminRepository catalogAdminRepository(JdbcTemplate jdbc) {return new CatalogAdminRepository(jdbc);}
     @Bean public CatalogAdminService catalogAdminService(CatalogRepository catalog,CatalogAdminRepository changes,AccountService accounts,PlatformTransactionManager manager) {return new CatalogAdminService(catalog,changes,accounts,new TransactionTemplate(manager));}

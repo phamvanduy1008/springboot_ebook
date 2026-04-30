@@ -7,9 +7,10 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 public class PublicCatalogService {
     private final CatalogRepository catalog;
+    private final RankingService rankings;
     private final TransactionTemplate reads;
-    public PublicCatalogService(CatalogRepository catalog,PlatformTransactionManager manager) {
-        this.catalog=catalog;reads=new TransactionTemplate(manager);reads.setReadOnly(true);reads.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+    public PublicCatalogService(CatalogRepository catalog,RankingService rankings,PlatformTransactionManager manager) {
+        this.catalog=catalog;this.rankings=rankings;reads=new TransactionTemplate(manager);reads.setReadOnly(true);reads.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
     }
     public CatalogPage<BookView> books(CatalogQuery input) {
         var query=CatalogValidation.query(input,false);
@@ -33,7 +34,7 @@ public class PublicCatalogService {
         return reads.execute(tx -> {
             var recent=catalog.books(new CatalogQuery("",null,null,"updatedAt,desc",0,8,null),false);
             var books=catalog.views(recent.items(),false);var categories=catalog.categories(null,null,"bookCount,desc",0,8,false);
-            return new CatalogHome(books.stream().limit(5).toList(),List.of(),books,List.of(),catalog.publicAuthors(6),categories.items(),recent.total(),categories.total());
+            return new CatalogHome(books.stream().limit(5).toList(),rankings.books("month","views",null,null,0,8).items().stream().filter(v->v.metrics().views()>0).map(com.example.epub.core.model.catalog.RankingModels.BookRank::book).toList(),books,List.of(),catalog.publicAuthors(6),categories.items(),recent.total(),categories.total());
         });
     }
     public CatalogFilters filters() {return reads.execute(tx -> new CatalogFilters(catalog.years(),catalog.groups()));}

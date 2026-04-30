@@ -202,6 +202,8 @@ Creating or cloning a book creates an UPLOADING version with no artifacts. Uploa
 
 Guests can query `/api/v1/books`, `/books/{id}`, `/books/filters`, `/categories`, `/categories/{id}/books` and `/home`. Public results consistently require PUBLIC/PUBLISHED and a READY published pointer. Search folds Vietnamese accents and đ/Đ. Sort fields are allowlisted and UUID breaks ties. Home featured means recently updated; suggestions and trending are empty until their real sources are available. No reader or file URL is claimed from metadata alone.
 
+`GET /api/v1/rankings` and `/rankings/authors` aggregate calendar week/month/year in UTC with exclusive end boundaries. UUID breaks ties and author credits remain separate identities. Views come only from CSRF-protected `POST /books/{id}/views` (empty body), deduplicated per book/viewer/day UTC and throttled per hashed remote address. No raw IP or user agent is stored. GET does not record a view. Read events await progress ingestion; likes/reviews have no source yet, so ratings are null and their rankings empty. Home trending uses actual monthly views.
+
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 
 For local browser development, proxy `/api` to the backend and use relative URLs. Cross-origin credential access is not enabled globally.

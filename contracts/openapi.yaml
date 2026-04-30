@@ -1141,6 +1141,154 @@ paths:
                 $ref: '#/components/schemas/CatalogHome'
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/rankings:
+    get:
+      operationId: getCatalogBookRankPage
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogBookRankPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - week
+          - month
+          - year
+          default: month
+      - name: metric
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - views
+          - reads
+          - likes
+          - rating
+          default: views
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/v1/rankings/authors:
+    get:
+      operationId: getCatalogAuthorRankPage
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogAuthorRankPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - week
+          - month
+          - year
+          default: month
+      - name: metric
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - views
+          - reads
+          - likes
+          - rating
+          default: views
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/v1/books/{id}/views:
+    post:
+      operationId: recordOverviewView
+      security: []
+      responses:
+        '200':
+          description: Server timestamp, one fingerprint/book/day UTC, throttled. No client metric fields. CSRF required for
+            guests too.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogViewResult'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogViewInput'
 components:
   securitySchemes:
     SessionCookie:
@@ -1948,3 +2096,175 @@ components:
           items:
             type: string
             maxLength: 40
+    CatalogMetricWindow:
+      type: object
+      additionalProperties: false
+      required:
+      - period
+      - from
+      - to
+      properties:
+        period:
+          type: string
+          enum:
+          - week
+          - month
+          - year
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    CatalogTotals:
+      type: object
+      additionalProperties: false
+      required:
+      - views
+      - reads
+      - likes
+      - averageRating
+      - ratingCount
+      properties:
+        views:
+          type: integer
+          format: int64
+        reads:
+          type: integer
+          format: int64
+        likes:
+          type: integer
+          format: int64
+        averageRating:
+          type:
+          - number
+          - 'null'
+        ratingCount:
+          type: integer
+          format: int64
+    CatalogRankedBook:
+      type: object
+      additionalProperties: false
+      required:
+      - book
+      - rank
+      - metrics
+      properties:
+        book:
+          $ref: '#/components/schemas/PublicCatalogBook'
+        rank:
+          type: integer
+          format: int64
+        metrics:
+          $ref: '#/components/schemas/CatalogTotals'
+    CatalogRankedAuthor:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - slug
+      - bookCount
+      - rank
+      - metrics
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 200
+        bookCount:
+          type: integer
+          format: int64
+        rank:
+          type: integer
+          format: int64
+        metrics:
+          $ref: '#/components/schemas/CatalogTotals'
+    CatalogBookRankPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      - metric
+      - window
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogRankedBook'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        metric:
+          type: string
+          enum:
+          - views
+          - reads
+          - likes
+          - rating
+        window:
+          $ref: '#/components/schemas/CatalogMetricWindow'
+    CatalogAuthorRankPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      - metric
+      - window
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogRankedAuthor'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        metric:
+          type: string
+          enum:
+          - views
+          - reads
+          - likes
+          - rating
+        window:
+          $ref: '#/components/schemas/CatalogMetricWindow'
+    CatalogViewInput:
+      type: object
+      additionalProperties: false
+      required: []
+      properties: {}
+    CatalogViewResult:
+      type: object
+      additionalProperties: false
+      required:
+      - recorded
+      properties:
+        recorded:
+          type: boolean
