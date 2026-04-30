@@ -1,7 +1,7 @@
 package com.example.epub.core.service.catalog;
 import java.util.Map;
 public class CatalogFailure extends RuntimeException {
-    public enum Reason { INVALID_REQUEST, NOT_FOUND, REVISION_CONFLICT, CATEGORY_IN_USE, REFERENCE_CONFLICT, INVALID_STATE }
+    public enum Reason { RATE_LIMITED,INVALID_REQUEST, NOT_FOUND, REVISION_CONFLICT, CATEGORY_IN_USE, REFERENCE_CONFLICT, INVALID_STATE }
     private final Reason reason;
     private final Map<String,String> fields;
     public CatalogFailure(Reason reason) {this(reason,Map.of());}

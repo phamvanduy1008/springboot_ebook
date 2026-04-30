@@ -79,4 +79,9 @@ public class CatalogRepository {
     public List<Author> publicAuthors(int limit) {
         return jdbc.query("SELECT a.*,count(DISTINCT b.id) AS book_count FROM authors a JOIN book_authors ba ON ba.author_id=a.id JOIN books b ON b.id=ba.book_id WHERE "+PUBLIC+" GROUP BY a.id ORDER BY book_count DESC,a.id LIMIT ?",this::mapAuthor,limit);
     }
+
+ public Map<UUID,CatalogBook> publicByIds(List<UUID> ids) {
+  if(ids.isEmpty())return Map.of();
+  return named.query("SELECT "+COLUMNS+" FROM books b WHERE b.id IN (:ids) AND "+PUBLIC,Map.of("ids",ids),this::book).stream().collect(java.util.stream.Collectors.toMap(CatalogBook::id,java.util.function.Function.identity()));
+ }
 }
