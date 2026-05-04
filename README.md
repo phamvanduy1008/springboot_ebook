@@ -204,6 +204,8 @@ Guests can query `/api/v1/books`, `/books/{id}`, `/books/filters`, `/categories`
 
 `GET /api/v1/rankings` and `/rankings/authors` aggregate calendar week/month/year in UTC with exclusive end boundaries. UUID breaks ties and author credits remain separate identities. Views come only from CSRF-protected `POST /books/{id}/views` (empty body), deduplicated per book/viewer/day UTC and throttled per hashed remote address. No raw IP or user agent is stored. GET does not record a view. Read events await progress ingestion; likes/reviews have no source yet, so ratings are null and their rankings empty. Home trending uses actual monthly views.
 
+`GET /api/v1/books/{id}/overview` combines public metadata, book-specific quote/characters, monthly metrics/rank and related public books. GET has no view-count side effect. `chapterCount` comes only from the published version's ingestion metadata and remains null when unknown. Admin quote and ordered character updates use `/admin/books/{id}/editorial` and `/characters`, guarded by CSRF, admin policy, book revision and audit. Existing character IDs must belong to the edited book. No chapter, comment or rating data is invented.
+
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 
 For local browser development, proxy `/api` to the backend and use relative URLs. Cross-origin credential access is not enabled globally.
