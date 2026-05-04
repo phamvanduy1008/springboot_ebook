@@ -12,8 +12,9 @@ public class CatalogAdminService {
     private final AccountService accounts;
     private final TransactionTemplate transactions;
     private final TransactionTemplate reads;
-    public CatalogAdminService(CatalogRepository catalog,CatalogAdminRepository changes,AccountService accounts,TransactionTemplate transactions) {
-        this.catalog=catalog;this.changes=changes;this.accounts=accounts;this.transactions=transactions;
+    private final EditorialRepository editorial;
+    public CatalogAdminService(CatalogRepository catalog,CatalogAdminRepository changes,AccountService accounts,TransactionTemplate transactions,EditorialRepository editorial) {
+        this.editorial=editorial;this.catalog=catalog;this.changes=changes;this.accounts=accounts;this.transactions=transactions;
         reads=new TransactionTemplate(transactions.getTransactionManager());reads.setReadOnly(true);reads.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_REPEATABLE_READ);
     }
     private void admin(UUID actor) {AccessPolicy.requireAdministrator(accounts.byId(actor).orElse(null));}
@@ -100,5 +101,26 @@ public class CatalogAdminService {
     }
     public void deleteAuthor(UUID actor,UUID id,long revision,String requestId) {
         mutate(actor,() -> {CatalogValidation.revision(revision);if(!changes.lockAuthor(id))throw new CatalogFailure(CatalogFailure.Reason.NOT_FOUND);if(!changes.deleteAuthor(id,revision))throw new CatalogFailure(CatalogFailure.Reason.REVISION_CONFLICT);audit("AUTHOR_DELETED",actor,"AUTHOR",id,requestId);return null;});
+    }
+
+    public com.example.epub.core.model.catalog.EditorialModels.Editorial editorial(UUID actor,UUID id) {
+        return reads.execute(tx->{admin(actor);var book=catalog.find(id,true).orElseThrow(()->new CatalogFailure(CatalogFailure.Reason.NOT_FOUND));return new com.example.epub.core.model.catalog.EditorialModels.Editorial(editorial.quote(id),editorial.characters(id),book.revision());});
+    }
+    public com.example.epub.core.model.catalog.EditorialModels.Editorial quote(UUID actor,UUID id,long revision,String quote,String requestId) {
+        return mutate(actor,()->{lock(id,revision);editorial.quote(id,CatalogValidation.text(quote,"quote",500,false));changes.touchBook(id,revision);audit("BOOK_QUOTE_UPDATED",actor,"BOOK",id,requestId);return editorial(actor,id);});
+    }
+    public com.example.epub.core.model.catalog.EditorialModels.Editorial characters(UUID actor,UUID id,long revision,List<com.example.epub.core.model.catalog.EditorialModels.CharacterDraft> input,String requestId) {
+        return mutate(actor,()->{lock(id,revision);
+            if(input==null||input.size()>30)throw CatalogFailure.invalid("characters","At most 30 characters");
+            var current=new HashMap<UUID,com.example.epub.core.model.catalog.EditorialModels.Character>();for(var c:editorial.characters(id))current.put(c.id(),c);
+            var seen=new HashSet<UUID>();var result=new ArrayList<com.example.epub.core.model.catalog.EditorialModels.Character>();
+            for(var c:input) {
+                if(c==null)throw CatalogFailure.invalid("characters","Character is required");
+                if(c.id()!=null&&(!current.containsKey(c.id())||!seen.add(c.id())))throw CatalogFailure.invalid("characters","Unknown or duplicate character ID for this book");
+                String color=c.color()==null?"#3343db":c.color();if(!color.matches("#[0-9a-fA-F]{6}"))throw CatalogFailure.invalid("color","Use hex color");
+                result.add(new com.example.epub.core.model.catalog.EditorialModels.Character(c.id()==null?UUID.randomUUID():c.id(),CatalogValidation.text(c.name(),"name",120,true),CatalogValidation.text(c.role(),"role",100,false),CatalogValidation.text(c.description(),"description",1000,false),CatalogValidation.text(c.initials(),"initials",8,false),color,result.size(),c.id()==null?0:current.get(c.id()).revision()+1));
+            }
+            editorial.characters(id,result);changes.touchBook(id,revision);audit("BOOK_CHARACTERS_UPDATED",actor,"BOOK",id,requestId);return editorial(actor,id);
+        });
     }
 }

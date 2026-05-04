@@ -16,7 +16,17 @@ final class CatalogTestSupport implements AutoCloseable {
     static final JsonMapper JSON=JsonMapper.builder().build();
     final JdbcTemplate jdbc;
     final List<UUID> books=new ArrayList<>(),categories=new ArrayList<>(),authors=new ArrayList<>(),users=new ArrayList<>();
-    CatalogTestSupport(JdbcTemplate jdbc) {this.jdbc=jdbc;}
+    private final List<Map<String,Object>> loginBucket;
+    private static String authHash(String text) {
+        try {return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+        catch(java.security.NoSuchAlgorithmException impossible) {throw new IllegalStateException(impossible);}
+    }
+    CatalogTestSupport(JdbcTemplate jdbc) {
+        this.jdbc=jdbc;
+        // The isolated reactor runs HTTP suites sequentially against one cluster. Restore only
+        // our shared loopback login bucket so catalog logins do not consume later auth tests' budget.
+        loginBucket=jdbc.queryForList("SELECT window_started,hits FROM auth_rate_limits WHERE bucket_key=?",authHash("login-ip:127.0.0.1"));
+    }
     UUID user(String role) {
         UUID id=UUID.randomUUID();users.add(id);
         jdbc.update("INSERT INTO users(id,email_normalized,password_hash,display_name,role,email_verified_at) VALUES (?,?,?,?,?,now())",id,id+"@example.test",new BCryptPasswordEncoder(12).encode(PASSWORD),"Catalog test",role);return id;
@@ -48,7 +58,9 @@ final class CatalogTestSupport implements AutoCloseable {
             }
             for(UUID id:categories) {jdbc.update("DELETE FROM categories WHERE id=?",id);jdbc.update("DELETE FROM audit_logs WHERE target_id=?",id);}
             for(UUID id:authors) {jdbc.update("DELETE FROM authors WHERE id=?",id);jdbc.update("DELETE FROM audit_logs WHERE target_id=?",id);}
-            for(UUID id:users) {jdbc.update("DELETE FROM audit_logs WHERE target_id=? OR actor_id=?",id,id);jdbc.update("DELETE FROM spring_session WHERE principal_name=?",id.toString());jdbc.update("DELETE FROM users WHERE id=?",id);}
+            for(UUID id:users) {jdbc.update("DELETE FROM audit_logs WHERE target_id=? OR actor_id=?",id,id);jdbc.update("DELETE FROM spring_session WHERE principal_name=?",id.toString());jdbc.update("DELETE FROM users WHERE id=?",id);jdbc.update("DELETE FROM auth_rate_limits WHERE bucket_key=?",authHash("login-email:"+id+"@example.test"));}
+            String key=authHash("login-ip:127.0.0.1");jdbc.update("DELETE FROM auth_rate_limits WHERE bucket_key=?",key);
+            if(!loginBucket.isEmpty()) {var saved=loginBucket.getFirst();jdbc.update("INSERT INTO auth_rate_limits(bucket_key,window_started,hits) VALUES (?,?,?)",key,saved.get("window_started"),saved.get("hits"));}
         });
     }
     static final class Browser implements AutoCloseable {

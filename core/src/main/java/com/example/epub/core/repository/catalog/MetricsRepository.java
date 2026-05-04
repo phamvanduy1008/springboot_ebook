@@ -36,4 +36,9 @@ public class MetricsRepository {
   var rows=jdbc.query(cte+"SELECT * FROM credited ORDER BY "+(metric.equals("views")?"views":"reads")+" DESC,id ASC LIMIT ? OFFSET ?",(rs,n)->new AuthorRank(rs.getObject("id",UUID.class),rs.getString("name"),rs.getString("slug"),rs.getLong("book_count"),(long)page*size+n+1,new Totals(rs.getLong("views"),rs.getLong("reads"),0,null,0)),args.toArray());
   return new CatalogPage<>(rows,page,size,total);
  }
+
+ public Long viewRank(UUID id,MetricWindow window) {
+  var args=new ArrayList<Object>();String cte=aggregate(window,args,null,null);args.add(id);
+  return jdbc.query(cte+", ranked AS (SELECT id,row_number() OVER(ORDER BY views DESC,id) AS rank FROM eligible WHERE views>0) SELECT rank FROM ranked WHERE id=?",(rs,n)->rs.getLong("rank"),args.toArray()).stream().findFirst().orElse(null);
+ }
 }

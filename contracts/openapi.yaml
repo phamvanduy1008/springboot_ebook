@@ -1289,6 +1289,103 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CatalogViewInput'
+  /api/v1/books/{id}/overview:
+    get:
+      operationId: getStoryOverview
+      security: []
+      responses:
+        '200':
+          description: Public READY metadata, editorial and monthly UTC metrics; chapter count is null until ingestion supplies
+            it. No chapter text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogOverview'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/admin/books/{id}/editorial:
+    get:
+      operationId: getStoryEditorial
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEditorial'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateStoryQuote
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEditorial'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogQuoteInput'
+  /api/v1/admin/books/{id}/characters:
+    put:
+      operationId: replaceStoryCharacters
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: Book revision guards atomic ordered replacement; existing IDs must belong to this book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEditorial'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCharactersInput'
 components:
   securitySchemes:
     SessionCookie:
@@ -2268,3 +2365,167 @@ components:
       properties:
         recorded:
           type: boolean
+    CatalogCharacter:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - role
+      - description
+      - initials
+      - color
+      - position
+      - revision
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 120
+        role:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        initials:
+          type: string
+          maxLength: 8
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+        position:
+          type: integer
+          format: int64
+        revision:
+          type: integer
+          format: int64
+    CatalogEditorial:
+      type: object
+      additionalProperties: false
+      required:
+      - quote
+      - characters
+      - revision
+      properties:
+        quote:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        characters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCharacter'
+        revision:
+          type: integer
+          format: int64
+    CatalogOverview:
+      type: object
+      additionalProperties: false
+      required:
+      - book
+      - introduction
+      - quote
+      - chapterCount
+      - characters
+      - metrics
+      - distribution
+      - viewRank
+      - window
+      - related
+      properties:
+        book:
+          $ref: '#/components/schemas/PublicCatalogBook'
+        introduction:
+          type: string
+          maxLength: 20000
+        quote:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        chapterCount:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        characters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogCharacter'
+        metrics:
+          $ref: '#/components/schemas/CatalogTotals'
+        distribution:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            type: integer
+            format: int64
+        viewRank:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        window:
+          $ref: '#/components/schemas/CatalogMetricWindow'
+        related:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCatalogBook'
+    CatalogQuoteInput:
+      type: object
+      additionalProperties: false
+      required:
+      - revision
+      properties:
+        revision:
+          type: integer
+          format: int64
+        quote:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+    CatalogCharacterInput:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 120
+        role:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        initials:
+          type: string
+          maxLength: 8
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+    CatalogCharactersInput:
+      type: object
+      additionalProperties: false
+      required:
+      - revision
+      - characters
+      properties:
+        revision:
+          type: integer
+          format: int64
+        characters:
+          type: array
+          maxItems: 30
+          items:
+            $ref: '#/components/schemas/CatalogCharacterInput'
