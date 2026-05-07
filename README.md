@@ -209,3 +209,11 @@ Guests can query `/api/v1/books`, `/books/{id}`, `/books/filters`, `/categories`
 MVC errors use `application/problem+json` with `type`, `title`, `status`, `code`, `detail`, `requestId` and `fieldErrors`. Pagination DTOs use zero-based pages, sizes from 1 to 100, an endpoint-specific sort allowlist and an ID tie-breaker. OpenAPI and HTTP contract checks run during `verify`.
 
 For local browser development, proxy `/api` to the backend and use relative URLs. Cross-origin credential access is not enabled globally.
+
+## Existing Ebook database on PostgreSQL 18
+
+Keep local settings in the ignored root `.env`: `DB_URL=jdbc:postgresql://127.0.0.1:5432/Ebook`, `DB_USERNAME=postgres`, and the local password when authentication requires one. Run from this repository root so both executables load `.env`. Hibernate validates; it never creates or updates the schema.
+
+The historical `epub_schema.sql` public baseline differs from V001–V007. For that inspected schema only, after validating a restored backup, run `tools/Start-Local.ps1 -Database Ebook -AdoptLegacySchema`. The launcher performs a read-only schema preflight and creates a custom-format backup under ignored `var/`, then explicitly records Flyway BASELINE 7 and applies V008. This is not a record that V001–V007 executed. Normal configuration retains `baseline-on-migrate=false`; later starts use `tools/Start-Local.ps1 -Database Ebook` without adoption.
+
+V008 preserves book UUIDs, titles, credits, category links and legacy metric rows/timestamps/keys. It adds missing auth/config fields and maintains folded search on legacy ordinary columns. Original READY/spine/TOC guards remain; current identity guards are added alongside them. Existing DRAFT metadata stays DRAFT and is not made readable or public through discovery. Do not rerun the old schema SQL over the adopted database. Keep backups private and outside Git.
