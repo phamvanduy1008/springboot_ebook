@@ -202,7 +202,7 @@ Creating or cloning a book creates an UPLOADING version with no artifacts. Uploa
 
 Guests can query `/api/v1/books`, `/books/{id}`, `/books/filters`, `/categories`, `/categories/{id}/books` and `/home`. Public results consistently require PUBLIC/PUBLISHED and a READY published pointer. Search folds Vietnamese accents and đ/Đ. Sort fields are allowlisted and UUID breaks ties. Home featured means recently updated; suggestions and trending are empty until their real sources are available. No reader or file URL is claimed from metadata alone.
 
-`GET /api/v1/rankings` and `/rankings/authors` aggregate calendar week/month/year in UTC with exclusive end boundaries. UUID breaks ties and author credits remain separate identities. Views come only from CSRF-protected `POST /books/{id}/views` (empty body), deduplicated per book/viewer/day UTC and throttled per hashed remote address. No raw IP or user agent is stored. GET does not record a view. Read events await progress ingestion; likes/reviews have no source yet, so ratings are null and their rankings empty. Home trending uses actual monthly views.
+`GET /api/v1/rankings` and `/rankings/authors` aggregate calendar week/month/year in UTC with exclusive end boundaries. UUID breaks ties and author credits remain separate identities. Views come only from CSRF-protected `POST /books/{id}/views` (empty body), deduplicated per book/viewer/day UTC and throttled per hashed remote address. No raw IP or user agent is stored. GET does not record a view. Read events await progress ingestion; likes come from current favorites added in the selected UTC window; reviews have no source yet, so ratings are null and rating rankings empty. Home trending uses actual monthly views.
 
 `GET /api/v1/books/{id}/overview` combines public metadata, book-specific quote/characters, monthly metrics/rank and related public books. GET has no view-count side effect. `chapterCount` comes only from the published version's ingestion metadata and remains null when unknown. Admin quote and ordered character updates use `/admin/books/{id}/editorial` and `/characters`, guarded by CSRF, admin policy, book revision and audit. Existing character IDs must belong to the edited book. No chapter, comment or rating data is invented.
 
@@ -217,3 +217,38 @@ Keep local settings in the ignored root `.env`: `DB_URL=jdbc:postgresql://127.0.
 The historical `epub_schema.sql` public baseline differs from V001–V007. For that inspected schema only, after validating a restored backup, run `tools/Start-Local.ps1 -Database Ebook -AdoptLegacySchema`. The launcher performs a read-only schema preflight and creates a custom-format backup under ignored `var/`, then explicitly records Flyway BASELINE 7 and applies V008. This is not a record that V001–V007 executed. Normal configuration retains `baseline-on-migrate=false`; later starts use `tools/Start-Local.ps1 -Database Ebook` without adoption.
 
 V008 preserves book UUIDs, titles, credits, category links and legacy metric rows/timestamps/keys. It adds missing auth/config fields and maintains folded search on legacy ordinary columns. Original READY/spine/TOC guards remain; current identity guards are added alongside them. Existing DRAFT metadata stays DRAFT and is not made readable or public through discovery. Do not rerun the old schema SQL over the adopted database. Keep backups private and outside Git.
+
+## Personal library and settings
+
+Authenticated users manage metadata through `/api/v1/library`, `/favorites`, `/view-history`
+and `/settings`. Lists are paginated (zero-based, size 1..100), use `q`, `sort=recent|title|author`,
+`shelf=all|want|reading|finished` and `ownership=all|owned|public`. Counts reflect all accessible
+personal state, independent of the current list filters. PRIVATE means ownership, never a shelf.
+Public discoverable metadata and owned private metadata are eligible; administrators gain no
+implicit access to another account's private books. Unavailable titles disappear from list/count
+responses, but users may remove their own stale relations.
+
+Read `/library/{bookId}` before changing a book. All shelf/favorite/history mutations share its
+revision. PUT `/library/{bookId}` accepts `{ "shelf": "want", "revision": 0 }`; PUT
+`/favorites/{bookId}` and POST `/view-history/{bookId}` accept `{ "revision": 0 }`.
+DELETE on these item paths takes `?revision=N`. Return values include the new shared state and
+revision. Every mutation also requires CSRF and a client-generated UUID `Idempotency-Key` header.
+Keep that key and exact request for a retry: for 24 hours it returns the original result without
+reapplying the operation. A different request with the same key returns IDEMPOTENCY_CONFLICT;
+a stale revision returns REVISION_CONFLICT. Refetch state before making another edit. No automatic
+migration from browser localStorage occurs.
+
+Favorites do not require a shelf and removing a shelf preserves favorites, books and ownership.
+History records only an accessible metadata view explicitly confirmed through POST, deduplicates
+by user/book and retains the 100 most recently viewed titles (server timestamp, UUID tie-break).
+It is independent of reading/listening progress. These APIs never return fabricated progress,
+chapter locations, file paths or reader access.
+
+Likes count currently active favorites whose last false-to-true transition falls inside the
+selected calendar UTC window, from currently active accounts, restricted to public catalog books.
+Repeated saves/favorites and idempotent retries cannot increment that count; unfavoriting removes
+the contribution. Likes rankings omit zero-like rows. Author credits follow existing UUID rules.
+
+Settings GET returns defaults until saved. PUT replaces only theme, readerTheme, fontSize,
+lineHeight, readerFont and revision; use the same CSRF/idempotency rules. Unknown fields (including
+role, user ID and paths) are rejected. See OpenAPI for exact allowlists and bounds.

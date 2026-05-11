@@ -1386,6 +1386,468 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CatalogCharactersInput'
+  /api/v1/library:
+    get:
+      operationId: getPersonalLibrary
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalLibraryPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: shelf
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - want
+          - reading
+          - finished
+          default: all
+      - name: ownership
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - owned
+          - public
+          default: all
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - recent
+          - title
+          - author
+          default: recent
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      description: Only accessible public metadata and owned private books. Shelves,
+        favorites and view history are independent. History contains at most 100 successful
+        metadata views, ordered by server time then UUID.
+  /api/v1/library/{bookId}:
+    parameters:
+    - name: bookId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getPersonalBookState
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+    put:
+      operationId: putPersonalLibraryBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalShelfInput'
+      description: Requires the shared book-state revision and a UUID Idempotency-Key.
+        Identical retries replay the original response for 24 hours; reusing a key for
+        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
+        Saving or liking never grants reader access.
+    delete:
+      operationId: deletePersonalLibraryBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: revision
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      description: Removes only the selected personal relation. Never deletes a book,
+        file, ownership or the other relations. A revision tombstone prevents stale
+        retries from resurrecting removed state.
+  /api/v1/favorites:
+    get:
+      operationId: getPersonalFavorites
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalLibraryPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: shelf
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - want
+          - reading
+          - finished
+          default: all
+      - name: ownership
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - owned
+          - public
+          default: all
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - recent
+          - title
+          - author
+          default: recent
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      description: Only accessible public metadata and owned private books. Shelves,
+        favorites and view history are independent. History contains at most 100 successful
+        metadata views, ordered by server time then UUID.
+  /api/v1/favorites/{bookId}:
+    parameters:
+    - name: bookId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    put:
+      operationId: putPersonalFavoritesBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalRevisionInput'
+      description: Requires the shared book-state revision and a UUID Idempotency-Key.
+        Identical retries replay the original response for 24 hours; reusing a key for
+        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
+        Saving or liking never grants reader access.
+    delete:
+      operationId: deletePersonalFavoritesBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: revision
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      description: Removes only the selected personal relation. Never deletes a book,
+        file, ownership or the other relations. A revision tombstone prevents stale
+        retries from resurrecting removed state.
+  /api/v1/view-history:
+    get:
+      operationId: getPersonalViewHistory
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalLibraryPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - name: shelf
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - want
+          - reading
+          - finished
+          default: all
+      - name: ownership
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - owned
+          - public
+          default: all
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - recent
+          - title
+          - author
+          default: recent
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      description: Only accessible public metadata and owned private books. Shelves,
+        favorites and view history are independent. History contains at most 100 successful
+        metadata views, ordered by server time then UUID.
+  /api/v1/view-history/{bookId}:
+    parameters:
+    - name: bookId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: putPersonalViewHistoryBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalRevisionInput'
+      description: Requires the shared book-state revision and a UUID Idempotency-Key.
+        Identical retries replay the original response for 24 hours; reusing a key for
+        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
+        Saving or liking never grants reader access.
+    delete:
+      operationId: deletePersonalViewHistoryBook
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalBookState'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: revision
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      description: Removes only the selected personal relation. Never deletes a book,
+        file, ownership or the other relations. A revision tombstone prevents stale
+        retries from resurrecting removed state.
+  /api/v1/settings:
+    get:
+      operationId: getPersonalSettings
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalSettings'
+        default:
+          $ref: '#/components/responses/Problem'
+    put:
+      operationId: putPersonalSettings
+      tags:
+      - Personal library
+      security:
+      - SessionCookie: []
+      responses:
+        '200':
+          description: 'Account-scoped state; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalSettings'
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalSettings'
+      description: Complete replacement of the appearance allowlist only. User identity,
+        roles, raw paths and unknown fields are rejected. Uses settings revision and
+        the same 24-hour idempotency policy.
 components:
   securitySchemes:
     SessionCookie:
@@ -2529,3 +2991,206 @@ components:
           maxItems: 30
           items:
             $ref: '#/components/schemas/CatalogCharacterInput'
+
+    PersonalRevisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - revision
+      properties:
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+    PersonalShelfInput:
+      type: object
+      additionalProperties: false
+      required:
+      - shelf
+      - revision
+      properties:
+        shelf:
+          type: string
+          enum:
+          - want
+          - reading
+          - finished
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+    PersonalBookState:
+      type: object
+      additionalProperties: false
+      required:
+      - bookId
+      - shelf
+      - favorite
+      - viewedAt
+      - revision
+      - owned
+      properties:
+        bookId:
+          type: string
+          format: uuid
+        shelf:
+          type: string
+          enum:
+          - want
+          - reading
+          - finished
+          - null
+          nullable: true
+        favorite:
+          type: boolean
+        viewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        owned:
+          type: boolean
+    PersonalLibraryEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - book
+      - shelf
+      - favorite
+      - viewedAt
+      - revision
+      - owned
+      properties:
+        book:
+          $ref: '#/components/schemas/PublicCatalogBook'
+        shelf:
+          type: string
+          enum:
+          - want
+          - reading
+          - finished
+          - null
+          nullable: true
+        favorite:
+          type: boolean
+        viewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        owned:
+          type: boolean
+    PersonalLibraryCounts:
+      type: object
+      additionalProperties: false
+      required:
+      - all
+      - want
+      - reading
+      - finished
+      - owned
+      - favorites
+      - history
+      properties:
+        all:
+          type: integer
+          format: int64
+          minimum: 0
+        want:
+          type: integer
+          format: int64
+          minimum: 0
+        reading:
+          type: integer
+          format: int64
+          minimum: 0
+        finished:
+          type: integer
+          format: int64
+          minimum: 0
+        owned:
+          type: integer
+          format: int64
+          minimum: 0
+        favorites:
+          type: integer
+          format: int64
+          minimum: 0
+        history:
+          type: integer
+          format: int64
+          minimum: 0
+    PersonalLibraryPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - total
+      - counts
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalLibraryEntry'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        counts:
+          $ref: '#/components/schemas/PersonalLibraryCounts'
+    PersonalSettings:
+      type: object
+      additionalProperties: false
+      required:
+      - theme
+      - readerTheme
+      - fontSize
+      - lineHeight
+      - readerFont
+      - revision
+      properties:
+        theme:
+          type: string
+          enum:
+          - light
+          - dark
+          - system
+        readerTheme:
+          type: string
+          enum:
+          - light
+          - dark
+          - sepia
+        fontSize:
+          type: integer
+          minimum: 14
+          maximum: 40
+        lineHeight:
+          type: number
+          minimum: 1.2
+          maximum: 2.4
+          multipleOf: 0.01
+        readerFont:
+          type: string
+          enum:
+          - serif
+          - sans
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
