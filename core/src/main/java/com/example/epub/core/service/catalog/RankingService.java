@@ -21,7 +21,7 @@ public class RankingService {
   validate(metric,page,size);String search=CatalogValidation.text(q,"q",200,false);var window=window(period);
   return reads.execute(tx->{var rows=metrics.books(window,metric,category,search,page,size);var result=new ArrayList<BookRank>();long rank=(long)page*size;
    var byId=catalog.publicByIds(rows.items().stream().map(MetricsRepository.Row::id).toList());var views=catalog.views(rows.items().stream().map(row->byId.get(row.id())).toList(),false);
-   for(int i=0;i<views.size();i++){var row=rows.items().get(i);result.add(new BookRank(views.get(i),++rank,new Totals(row.views(),row.reads(),0,null,0)));}
+   for(int i=0;i<views.size();i++){var row=rows.items().get(i);result.add(new BookRank(views.get(i),++rank,new Totals(row.views(),row.reads(),row.likes(),null,0)));}
    return new Page<>(result,page,size,rows.total(),metric,window);
   });
  }
