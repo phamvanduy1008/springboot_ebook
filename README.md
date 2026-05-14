@@ -252,3 +252,25 @@ the contribution. Likes rankings omit zero-like rows. Author credits follow exis
 Settings GET returns defaults until saved. PUT replaces only theme, readerTheme, fontSize,
 lineHeight, readerFont and revision; use the same CSRF/idempotency rules. Unknown fields (including
 role, user ID and paths) are rejected. See OpenAPI for exact allowlists and bounds.
+
+# Private local object storage
+
+The API and worker share `STORAGE_ROOT` (default `./var/storage`, resolved from
+their working directory). Set the same absolute path for both processes. No
+cloud account is needed. Keep this directory outside every web server document
+root; grant filesystem access only to the service account. Never mount it as a
+static resource directory or commit its contents.
+
+`ObjectStorage` stages bounded streams, computes SHA-256/byte size, verifies them
+before atomic promotion to an immutable server-generated object identity, and
+supports reopen/stat/idempotent deletion. Staging and objects must reside on the
+same filesystem with atomic rename support. Symlinks, traversal and arbitrary
+paths are rejected. Filesystem administrators remain trusted; concurrent hostile
+changes to parent directories are outside the local adapter's threat boundary.
+
+The staging sweeper may remove incomplete files older than 48 hours (uploads must
+finish within that window). Promoted objects must only be cleaned after checking
+database references; no age-only deletion of permanent objects is permitted.
+Storage is private by default; delivery must resolve server object IDs and check
+book/version permissions. A later S3/R2 adapter can implement the same interface;
+bucket credentials, public buckets and CDN deployment are deferred.

@@ -1,0 +1,15 @@
+package com.example.epub.core.integration.storage;
+
+import java.io.*;
+import java.time.*;
+
+/** Private object store. Keys are server identities and must never be accepted from HTTP clients. */
+public interface ObjectStorage {
+    record ObjectInfo(String key, String sha256, long size) { }
+    ObjectInfo stage(InputStream input, long maximumBytes) throws IOException;
+    ObjectInfo promote(ObjectInfo staged) throws IOException;
+    InputStream open(String key) throws IOException;
+    ObjectInfo stat(String key) throws IOException;
+    void delete(String key) throws IOException;
+    int purgeStaging(Instant olderThan) throws IOException;
+}
