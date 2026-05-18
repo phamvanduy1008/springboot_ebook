@@ -274,3 +274,19 @@ database references; no age-only deletion of permanent objects is permitted.
 Storage is private by default; delivery must resolve server object IDs and check
 book/version permissions. A later S3/R2 adapter can implement the same interface;
 bucket credentials, public buckets and CDN deployment are deferred.
+
+## Durable jobs
+
+PostgreSQL jobs use a permanent server-generated dedupe key, SKIP LOCKED claims,
+90-second leases and a fresh fencing token for every attempt. Heartbeats run every
+20 seconds. A result transaction locks and validates the live lease before writing
+results and rechecks it at completion; an expired worker cannot commit results.
+Expired leases requeue with bounded backoff, or fail after max attempts. No raw
+exception message or job payload is returned by `GET /api/v1/jobs/{id}`.
+
+The separate worker polls only registered handlers, stops taking new jobs on
+shutdown and leaves interrupted work to lease recovery. No parser/TTS handler is
+installed by the queue prerequisite. A public administrator job has no owner;
+private jobs remain accessible only to their owner, including when another
+administrator requests them. Run `JobQueueIT` against an isolated native
+PostgreSQL database with `EPUB_IDENTITY_DB_TEST=true` and the standard DB variables.

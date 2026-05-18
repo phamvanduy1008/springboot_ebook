@@ -7,6 +7,38 @@ info:
 servers:
 - url: /
 paths:
+  /api/v1/jobs/{id}:
+    get:
+      operationId: getJob
+      security:
+        - SessionCookie: []
+      summary: Read a job owned by the session user or a public administrator job
+      description: Private jobs never receive an administrator override. Payloads, storage keys and lease tokens are not returned. Responses use Cache-Control no-store.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Redacted job state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, type, status, attempts, maxAttempts, updatedAt]
+                properties:
+                  id: {type: string, format: uuid}
+                  bookId: {type: string, format: uuid}
+                  versionId: {type: string, format: uuid}
+                  type: {type: string, enum: [INGEST, TTS, CLEANUP]}
+                  status: {type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]}
+                  attempts: {type: integer, minimum: 0}
+                  maxAttempts: {type: integer, minimum: 1}
+                  errorCode: {type: string, nullable: true}
+                  updatedAt: {type: string, format: date-time}
+        '401': {description: Session required}
+        '404': {description: Missing or inaccessible job}
   /api/v1/health:
     get:
       operationId: getHealth
