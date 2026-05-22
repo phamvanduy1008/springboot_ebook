@@ -290,3 +290,30 @@ installed by the queue prerequisite. A public administrator job has no owner;
 private jobs remain accessible only to their owner, including when another
 administrator requests them. Run `JobQueueIT` against an isolated native
 PostgreSQL database with `EPUB_IDENTITY_DB_TEST=true` and the standard DB variables.
+
+## EPUB compatibility probe
+
+`EpubExtractor` is an unwired compatibility probe using JDK 21 XML APIs and Apache
+Commons Compress 1.28.0. It emits a deterministic sanitized reader EPUB, a flat
+parent-indexed TOC, ordered spine resources and canonical raw text. The EPUB2 NCX
+and EPUB3 nav fixtures are self-authored CC0, including a generated test font.
+No downloaded books are part of the tests or Git history.
+
+Generate the corpus with `mvnw test -pl core -am -Dtest=EpubExtractorTest
+-Dsurefire.failIfNoSpecifiedTests=false -Depub.spike.output=<absolute-path>/var/epub-spike`.
+For browser QA install ephemeral dependencies using
+`npm install --prefix var/epub-renderer --ignore-scripts --no-audit --no-fund --save-exact
+epubjs@0.3.93 jszip@3.10.1 @playwright/test@1.64.1`, then run
+`node tools/Check-EpubCompatibility.cjs`. The local server binds only to loopback,
+checks embedded image/font loading and nested non-ASCII fragment navigation,
+rejects external requests and writes JSON/screenshots into `var/epub-spike`.
+Windows uses installed Edge; set `EPUB_QA_BROWSER_CHANNEL` for another browser.
+`EPUB_QA_NODE_MODULES`, `EPUB_QA_PLAYWRIGHT_MODULE` and `EPUB_SPIKE_DIR` can point to
+existing test dependencies/output. These JavaScript packages are QA tools only.
+
+Supported scope is reflowable EPUB2/3. DRM/encryption and fixed layouts are
+unsupported. Scripts/forms/remote URLs and SVG are removed; CSS uses a small
+property allowlist, with validated local font-face links. Complex CSS, external
+fonts and layouts are not preserved. Unicode fragments stay literal in XML href
+attributes because the tested ePub.js version looks up IDs without URI decoding.
+This probe does not install an upload route or production ingest handler.
