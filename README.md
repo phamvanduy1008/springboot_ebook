@@ -317,3 +317,28 @@ property allowlist, with validated local font-face links. Complex CSS, external
 fonts and layouts are not preserved. Unicode fragments stay literal in XML href
 attributes because the tested ePub.js version looks up IDs without URI decoding.
 This probe does not install an upload route or production ingest handler.
+
+## Local EPUB upload
+
+Send the file as a raw `application/epub+zip` body, with session cookie,
+`X-CSRF-TOKEN` and UUID `Idempotency-Key`. The maximum is 64 MiB; both declared
+length and streamed bytes are checked. The EPUB `mimetype` entry must be first.
+
+* `POST /api/v1/admin/books/{bookId}/epub?revision=N` stages a public book version
+  for an administrator; optional `rightsNote` records the distribution basis.
+* `POST /api/v1/imports?title=...&author=...` creates a private book for the verified
+  session user. `PUT /api/v1/library/books/{bookId}/epub?revision=N` stages a new
+  version of that user's existing private book. Administrators have no override.
+
+Successful requests return 202 with book/version/job IDs and the updated book
+revision. Poll the Location job URL. Upload does not parse or publish the book.
+Replay the identical key/body/parameters for the original response; changed
+requests conflict. Failed transactions/replays clean their unreferenced files.
+
+`EPUB_PRIVATE_QUOTA_BYTES` defaults to 1 GiB, `EPUB_ADMIN_QUOTA_BYTES` to 100 GiB,
+per account across uploads, with at most three processing private versions per
+owner. These are logical limits, not a promise of available local disk. Source
+bytes are reserved transactionally on upload; artifact accounting/finalization
+belongs to the ingest handler. Increasing configuration does not silently reset
+existing quota buckets. Raw request bodies are never logged. Multipart uploads,
+cloud URLs and client-provided storage paths are not supported.

@@ -11,7 +11,6 @@ import static java.nio.file.StandardOpenOption.*;
 
 /** Local, private, immutable objects; a partial upload never receives an object key. */
 public final class LocalObjectStorage implements ObjectStorage {
-    public static final class LimitExceeded extends IOException { public LimitExceeded() {super("Upload exceeds byte limit");} }
     private final Path root;
     public LocalObjectStorage(Path directory) throws IOException {
         root=directory.toAbsolutePath().normalize();
@@ -52,7 +51,6 @@ public final class LocalObjectStorage implements ObjectStorage {
                     if(count>maximumBytes-size)throw new LimitExceeded();
                     output.write(buffer,0,count);hash.update(buffer,0,count);size+=count;
                 }
-                if(size==0)throw new IOException("Empty object");
             }
             complete=true;return new ObjectInfo(key,HexFormat.of().formatHex(hash.digest()),size);
         } finally {if(!complete)Files.deleteIfExists(target);}
