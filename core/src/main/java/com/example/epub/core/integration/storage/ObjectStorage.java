@@ -5,6 +5,7 @@ import java.time.*;
 
 /** Private object store. Keys are server identities and must never be accepted from HTTP clients. */
 public interface ObjectStorage {
+    final class LimitExceeded extends IOException { public LimitExceeded() {super("Upload exceeds byte limit");} }
     record ObjectInfo(String key, String sha256, long size) { }
     ObjectInfo stage(InputStream input, long maximumBytes) throws IOException;
     ObjectInfo promote(ObjectInfo staged) throws IOException;

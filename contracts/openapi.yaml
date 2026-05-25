@@ -2,11 +2,233 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Authentication, account security, admin metadata and public discovery. Public books require PUBLIC/PUBLISHED
-    and a READY published version; no file or publishing API.
+  description: Authentication, personal library, catalog discovery and asynchronous local EPUB upload. Public reading
+    requires PUBLIC/PUBLISHED and a verified READY published version. Cloud deployment is deferred.
 servers:
 - url: /
 paths:
+  /api/v1/admin/books/{book}/epub:
+    post:
+      operationId: uploadPublicEpub
+      summary: Stage an EPUB for an existing public book (administrator)
+      description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
+        or client storage keys. Session and CSRF required. Private upload requires verified
+        email and ownership. Returns immediately after staging/transactional quota reservation,
+        without parsing the book. Retry the identical request/key for the original 202
+        result; changed content or parameters conflict. Upload never publishes a book.
+      security:
+      - SessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: revision
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: rightsNote
+        in: query
+        schema:
+          type: string
+          maxLength: 4000
+      requestBody:
+        required: true
+        content:
+          application/epub+zip:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          description: PROCESSING version and queued job; Cache-Control no-store
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Job status endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpubAccepted'
+        '400':
+          description: Invalid input/idempotency key
+        '401':
+          description: Session required
+        '403':
+          description: CSRF, administrator or verified email required
+        '404':
+          description: Missing/inaccessible book
+        '409':
+          description: Revision or idempotency conflict
+        '413':
+          description: Upload exceeds 64 MiB
+        '422':
+          description: Unsupported ZIP/EPUB signature
+        '429':
+          description: Storage quota or processing limit exceeded
+        '503':
+          description: Private storage unavailable
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/library/books/{book}/epub:
+    put:
+      operationId: uploadPrivateEpub
+      summary: Stage a new version of an owned private book
+      description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
+        or client storage keys. Session and CSRF required. Private upload requires verified
+        email and ownership. Returns immediately after staging/transactional quota reservation,
+        without parsing the book. Retry the identical request/key for the original 202
+        result; changed content or parameters conflict. Upload never publishes a book.
+      security:
+      - SessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: revision
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: rightsNote
+        in: query
+        schema:
+          type: string
+          maxLength: 4000
+      requestBody:
+        required: true
+        content:
+          application/epub+zip:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          description: PROCESSING version and queued job; Cache-Control no-store
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Job status endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpubAccepted'
+        '400':
+          description: Invalid input/idempotency key
+        '401':
+          description: Session required
+        '403':
+          description: CSRF, administrator or verified email required
+        '404':
+          description: Missing/inaccessible book
+        '409':
+          description: Revision or idempotency conflict
+        '413':
+          description: Upload exceeds 64 MiB
+        '422':
+          description: Unsupported ZIP/EPUB signature
+        '429':
+          description: Storage quota or processing limit exceeded
+        '503':
+          description: Private storage unavailable
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/imports:
+    post:
+      operationId: importPrivateEpub
+      summary: Create an owned private draft and stage its EPUB
+      description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
+        or client storage keys. Session and CSRF required. Private upload requires verified
+        email and ownership. Returns immediately after staging/transactional quota reservation,
+        without parsing the book. Retry the identical request/key for the original 202
+        result; changed content or parameters conflict. Upload never publishes a book.
+      security:
+      - SessionCookie: []
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: title
+        in: query
+        schema:
+          type: string
+          maxLength: 300
+          default: EPUB ri?ng t?
+      - name: author
+        in: query
+        schema:
+          type: string
+          maxLength: 500
+          default: Ch?a x?c ??nh
+      requestBody:
+        required: true
+        content:
+          application/epub+zip:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          description: PROCESSING version and queued job; Cache-Control no-store
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Job status endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpubAccepted'
+        '400':
+          description: Invalid input/idempotency key
+        '401':
+          description: Session required
+        '403':
+          description: CSRF, administrator or verified email required
+        '404':
+          description: Missing/inaccessible book
+        '409':
+          description: Revision or idempotency conflict
+        '413':
+          description: Upload exceeds 64 MiB
+        '422':
+          description: Unsupported ZIP/EPUB signature
+        '429':
+          description: Storage quota or processing limit exceeded
+        '503':
+          description: Private storage unavailable
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/jobs/{id}:
     get:
       operationId: getJob
@@ -1952,6 +2174,32 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    EpubAccepted:
+      type: object
+      required:
+      - bookId
+      - versionId
+      - jobId
+      - revision
+      - state
+      properties:
+        bookId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        state:
+          type: string
+          enum:
+          - PROCESSING
     Account:
       type: object
       required:

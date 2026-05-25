@@ -4,3 +4,4 @@ com.example.epub.core.config.LocalUserSeed
 com.example.epub.core.config.CatalogConfiguration
 com.example.epub.core.config.StorageConfiguration
 com.example.epub.core.config.JobConfiguration
+com.example.epub.core.config.EpubConfiguration
