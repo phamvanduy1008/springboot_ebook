@@ -43,11 +43,15 @@ public class EpubExtractorTest {
             <navPoint id='b'><navLabel><text>Phần hai</text></navLabel><content src='chương.xhtml#phần-hai'/></navPoint></navPoint>
             <navPoint id='c'><navLabel><text>Kết thúc</text></navLabel><content src='end.xhtml#end'/></navPoint></navMap></ncx>
             """);
+        if(!epub3) {
+            put(files,"OEBPS/chương.xhtml","<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.1//EN' 'http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd'>"+new String(files.get("OEBPS/chương.xhtml"),StandardCharsets.UTF_8));
+            put(files,"OEBPS/toc.ncx","<!DOCTYPE ncx PUBLIC '-//NISO//DTD ncx 2005-1//EN' 'http://www.daisy.org/z3986/2005/ncx-2005-1.dtd'>"+new String(files.get("OEBPS/toc.ncx"),StandardCharsets.UTF_8));
+        }
         return files;
     }
     public static void put(Map<String,byte[]> files,String key,String value) {files.put(key,value.getBytes(StandardCharsets.UTF_8));}
     public static byte[] zip(Map<String,byte[]> files) throws IOException {
-        var bytes=new ByteArrayOutputStream();try(var zip=new ZipArchiveOutputStream(bytes)) {for(var file:files.entrySet()) {var entry=new ZipArchiveEntry(file.getKey());zip.putArchiveEntry(entry);zip.write(file.getValue());zip.closeArchiveEntry();}}return bytes.toByteArray();
+        var bytes=new ByteArrayOutputStream();try(var zip=new ZipArchiveOutputStream(bytes)) {for(var file:files.entrySet()) {var entry=new ZipArchiveEntry(file.getKey());if(file.getKey().equals("mimetype")) {var crc=new java.util.zip.CRC32();crc.update(file.getValue());entry.setMethod(java.util.zip.ZipEntry.STORED);entry.setSize(file.getValue().length);entry.setCrc(crc.getValue());}zip.putArchiveEntry(entry);zip.write(file.getValue());zip.closeArchiveEntry();}}return bytes.toByteArray();
     }
     @Test void epub2And3PreserveNestedFragmentsUtf16AndDeterministicReaderArtifacts() throws Exception {
         for(boolean three:List.of(false,true)) {
@@ -71,7 +75,9 @@ public class EpubExtractorTest {
     }
     @Test void duplicateZipNamesAndUnixSymlinksAreRejectedWithoutExtractingToDisk() throws Exception {
         for(boolean symlink:List.of(false,true)) {
-            var bytes=new ByteArrayOutputStream();try(var zip=new ZipArchiveOutputStream(bytes)) {for(int i=0;i<2;i++) {var entry=new ZipArchiveEntry(symlink?"link"+i:"duplicate");if(symlink)entry.setUnixMode(0120777);zip.putArchiveEntry(entry);zip.write("../private".getBytes(StandardCharsets.UTF_8));zip.closeArchiveEntry();}}
+            var bytes=new ByteArrayOutputStream();try(var zip=new ZipArchiveOutputStream(bytes)) {
+                byte[] mime="application/epub+zip".getBytes(StandardCharsets.US_ASCII);var crc=new java.util.zip.CRC32();crc.update(mime);var first=new ZipArchiveEntry("mimetype");first.setMethod(java.util.zip.ZipEntry.STORED);first.setSize(mime.length);first.setCrc(crc.getValue());zip.putArchiveEntry(first);zip.write(mime);zip.closeArchiveEntry();
+                for(int i=0;i<2;i++) {var entry=new ZipArchiveEntry(symlink?"link"+i:"duplicate");if(symlink)entry.setUnixMode(0120777);zip.putArchiveEntry(entry);zip.write("../private".getBytes(StandardCharsets.UTF_8));zip.closeArchiveEntry();}}
             assertThrows(EpubExtractor.Invalid.class,()->new EpubExtractor().extract(bytes.toByteArray()));
         }
     }

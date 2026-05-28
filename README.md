@@ -342,3 +342,13 @@ bytes are reserved transactionally on upload; artifact accounting/finalization
 belongs to the ingest handler. Increasing configuration does not silently reset
 existing quota buckets. Raw request bodies are never logged. Multipart uploads,
 cloud URLs and client-provided storage paths are not supported.
+
+The production extractor now preflights the ZIP32 directory count before archive
+allocation, caps aggregate XML elements at 500000 and discards each DOM after
+deriving text/anchors. It accepts the exact inert standard XHTML/NCX DOCTYPE
+declarations after stripping them; internal subsets and every other DTD remain
+forbidden, and no resolver can access files or the network. ZIP64/multidisk and
+nonstandard first/compressed mimetype entries are unsupported under these limits.
+Spine and TOC persist separately, including nested parents and multiple fragments
+per file. READY reader structure is immutable; raw text remains UTF-8 in storage
+with UTF-16 string offsets/lengths, independently of any future TTS normalization.
