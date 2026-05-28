@@ -16,7 +16,7 @@ import org.w3c.dom.*;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 
-/** Trial extractor: bounded, offline, reflowable EPUB2/3; deliberately conservative CSS. */
+/** Bounded offline reflowable EPUB2/3 extractor; deliberately conservative CSS. */
 public final class EpubExtractor {
     public static final String VERSION="local-epub-1", SANITIZER="allowlist-1";
     public static final int MAX_SOURCE=64*1024*1024, MAX_ENTRY=16*1024*1024, MAX_TOTAL=256*1024*1024, MAX_ENTRIES=10000;
@@ -46,7 +46,8 @@ public final class EpubExtractor {
     private static Document xml(byte[] bytes) throws Exception {
         // Recognize only the inert standard XHTML declaration; every other DTD remains forbidden.
         String text=new String(bytes,StandardCharsets.UTF_8);
-        String without=text.replaceFirst("<!DOCTYPE html(?: PUBLIC [\"']-//W3C//DTD XHTML 1\\.[01]//EN[\"'] [\"']http://www\\.w3\\.org/TR/xhtml1[01]/DTD/xhtml1[01]\\.dtd[\"'])?\\s*>","");
+        String without=text.replaceFirst("<!DOCTYPE html(?: PUBLIC [\"']-//W3C//DTD XHTML 1\\.[01]//EN[\"'] [\"']http://www\\.w3\\.org/TR/xhtml1[01]/DTD/xhtml1[01]\\.dtd[\"'])?\\s*>","")
+            .replaceFirst("<!DOCTYPE ncx PUBLIC [\"']-//NISO//DTD ncx 2005-1//EN[\"'] [\"']http://www\\.daisy\\.org/z3986/2005/ncx-2005-1\\.dtd[\"']\\s*>","");
         if(!without.equals(text))bytes=utf(without);
         var factory=DocumentBuilderFactory.newInstance();factory.setNamespaceAware(true);factory.setXIncludeAware(false);factory.setExpandEntityReferences(false);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
@@ -55,6 +56,8 @@ public final class EpubExtractor {
         factory.setFeature("http://xml.org/sax/features/external-parameter-entities",false);
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD,"");factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA,"");
         factory.setAttribute("http://www.oracle.com/xml/jaxp/properties/maxElementDepth","64");
+        factory.setAttribute("http://www.oracle.com/xml/jaxp/properties/elementAttributeLimit","100");
+        factory.setAttribute("http://www.oracle.com/xml/jaxp/properties/maxXMLNameLimit","1000");
         var builder=factory.newDocumentBuilder();builder.setEntityResolver((a,b)->{throw invalid();});
         builder.setErrorHandler(new org.xml.sax.helpers.DefaultHandler() {@Override public void fatalError(org.xml.sax.SAXParseException e) throws org.xml.sax.SAXException {throw e;}});
         var doc=builder.parse(new ByteArrayInputStream(bytes));if(doc.getElementsByTagName("*").getLength()>100000)throw new Invalid("EPUB_LIMIT_EXCEEDED");return doc;
@@ -87,11 +90,13 @@ public final class EpubExtractor {
     }
     private static Map<String,byte[]> archive(byte[] source) throws Exception {
         if(source.length>MAX_SOURCE)throw new Invalid("EPUB_LIMIT_EXCEEDED");
+        preflightDirectory(source);
         var result=new LinkedHashMap<String,byte[]>();var names=new HashSet<String>();long total=0;int count=0;
         try(var zip=ZipFile.builder().setSeekableByteChannel(new SeekableInMemoryByteChannel(source)).get()) {
             var entries=zip.getEntriesInPhysicalOrder();
             while(entries.hasMoreElements()) {
                 var entry=entries.nextElement();String name=archivePath(entry.getName());
+                if(count==0&&(!name.equals("mimetype")||entry.getMethod()!=ZipEntry.STORED))throw invalid();
                 if(++count>MAX_ENTRIES||entry.getSize()>MAX_ENTRY||entry.getSize()<0||entry.getCompressedSize()<0||entry.getSize()>Math.max(1024*1024,entry.getCompressedSize()*200))throw new Invalid("EPUB_LIMIT_EXCEEDED");
                 if(!names.add(name)||entry.isUnixSymlink()||!zip.canReadEntryData(entry)||entry.getGeneralPurposeBit().usesEncryption())throw invalid();
                 if(entry.isDirectory())continue;
@@ -105,6 +110,24 @@ public final class EpubExtractor {
         if(!Arrays.equals(result.get("mimetype"),utf("application/epub+zip")))throw invalid();
         if(result.containsKey("META-INF/encryption.xml")||result.containsKey("META-INF/rights.xml"))throw new Invalid("EPUB_DRM_UNSUPPORTED");
         return result;
+    }
+    private static void preflightDirectory(byte[] source) throws Invalid {
+        // Bound the central directory before Commons Compress allocates entry objects.
+        if(source.length<22||source[0]!='P'||source[1]!='K'||source[2]!=3||source[3]!=4)throw invalid();
+        var buffer=java.nio.ByteBuffer.wrap(source).order(java.nio.ByteOrder.LITTLE_ENDIAN);int end=-1;
+        for(int i=source.length-22;i>=Math.max(0,source.length-65557);i--)if(buffer.getInt(i)==0x06054b50&&(buffer.getShort(i+20)&65535)==source.length-i-22) {end=i;break;}
+        if(end<0||buffer.getShort(end+4)!=0||buffer.getShort(end+6)!=0)throw invalid();
+        int count=buffer.getShort(end+10)&65535;
+        if(count>MAX_ENTRIES)throw new Invalid("EPUB_LIMIT_EXCEEDED");
+        long size=Integer.toUnsignedLong(buffer.getInt(end+12)),offset=Integer.toUnsignedLong(buffer.getInt(end+16));
+        if(count!=(buffer.getShort(end+8)&65535)||offset+size!=end||offset>source.length||count==0)throw invalid();
+        int cursor=(int)offset,actual=0;
+        while(cursor<end) {
+            if(cursor+46>end||buffer.getInt(cursor)!=0x02014b50)throw invalid();
+            if(++actual>MAX_ENTRIES)throw new Invalid("EPUB_LIMIT_EXCEEDED");
+            cursor+=46+(buffer.getShort(cursor+28)&65535)+(buffer.getShort(cursor+30)&65535)+(buffer.getShort(cursor+32)&65535);
+        }
+        if(cursor!=end||actual!=count)throw invalid();
     }
     private static byte[] required(Map<String,byte[]> files,String path) throws Invalid {byte[] value=files.get(path);if(value==null)throw invalid();return value;}
     private static final Set<String> TAGS=Set.of("html","head","body","title","meta","link","style","section","article","aside","nav","header","footer","main","div","span","p","br","hr","h1","h2","h3","h4","h5","h6","a","img","figure","figcaption","strong","em","b","i","u","s","small","sup","sub","blockquote","pre","code","ul","ol","li","dl","dt","dd","table","thead","tbody","tfoot","tr","th","td","caption","colgroup","col");
@@ -182,12 +205,12 @@ public final class EpubExtractor {
             if(item.output()!=null) {required(files,item.path());if(byPath.put(item.path(),item)!=null)throw invalid();if(Arrays.asList(properties.split("\\s+")).contains("cover-image"))cover=item.output();}
         }
         for(var meta:all(pkg,"meta"))if(meta.getAttribute("name").equals("cover")) {var item=items.get(meta.getAttribute("content"));if(item!=null&&item.media().startsWith("image/"))cover=item.output();}
-        var documents=new HashMap<String,Document>();var resources=new ArrayList<Resource>();var ids=new HashMap<String,Set<String>>();
+        var texts=new HashMap<String,String>();var titles=new HashMap<String,String>();var resources=new ArrayList<Resource>();var ids=new HashMap<String,Set<String>>();int nodeBudget=500000;
         for(var item:byPath.values().stream().sorted(Comparator.comparing(Item::output)).toList()) {
             byte[] bytes=files.get(item.path());
             if(item.media().equals("application/xhtml+xml")) {
-                var sourceDoc=xml(bytes);if(!local(sourceDoc.getDocumentElement()).equals("html"))throw invalid();var document=DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();document.appendChild(clean(sourceDoc.getDocumentElement(),document,item.path(),byPath));
-                var anchors=new HashSet<String>();for(var element:all(document.getDocumentElement(),"*"))if(element.hasAttribute("id")&&!anchors.add(element.getAttribute("id")))throw invalid();ids.put(item.path(),anchors);documents.put(item.path(),document);bytes=serialize(document);
+                var sourceDoc=xml(bytes);nodeBudget-=sourceDoc.getElementsByTagName("*").getLength();if(nodeBudget<0)throw new Invalid("EPUB_LIMIT_EXCEEDED");if(!local(sourceDoc.getDocumentElement()).equals("html"))throw invalid();var document=DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();document.appendChild(clean(sourceDoc.getDocumentElement(),document,item.path(),byPath));
+                var anchors=new HashSet<String>();for(var element:all(document.getDocumentElement(),"*"))if(element.hasAttribute("id")&&!anchors.add(element.getAttribute("id")))throw invalid();ids.put(item.path(),anchors);texts.put(item.path(),raw(document.getDocumentElement()));titles.put(item.path(),cleanLabel(firstText(document.getDocumentElement(),"title","Untitled")));bytes=serialize(document);
             } else if(item.media().equals("text/css"))bytes=utf(css(new String(bytes,StandardCharsets.UTF_8),item.path(),byPath));
             else if(item.media().startsWith("image/")) {
                 if(bytes.length<8||!(item.media().equals("image/png")&&bytes[0]==(byte)137&&bytes[1]=='P'&&bytes[2]=='N'&&bytes[3]=='G'||item.media().equals("image/jpeg")&&bytes[0]==(byte)255&&bytes[1]==(byte)216||item.media().equals("image/gif")&&new String(bytes,0,3,StandardCharsets.US_ASCII).equals("GIF")))throw invalid();
@@ -198,7 +221,7 @@ public final class EpubExtractor {
         for(var ref:all(pkg,"itemref")) {
             if(ref.getAttribute("properties").contains("pre-paginated"))throw new Invalid("EPUB_FIXED_LAYOUT_UNSUPPORTED");
             var item=items.get(ref.getAttribute("idref"));if(item==null||!item.media().equals("application/xhtml+xml")||sourceIndexes.put(item.path(),spine.size())!=null)throw invalid();
-            var doc=documents.get(item.path());String title=cleanLabel(firstText(doc.getDocumentElement(),"title","Section "+(spine.size()+1)));spine.add(new Spine(item.output(),title,!ref.getAttribute("linear").equals("no"),raw(doc.getDocumentElement())));
+            spine.add(new Spine(item.output(),titles.get(item.path()),!ref.getAttribute("linear").equals("no"),texts.get(item.path())));
         }
         if(spine.isEmpty())throw invalid();var toc=new ArrayList<Toc>();
         if(nav!=null) {
