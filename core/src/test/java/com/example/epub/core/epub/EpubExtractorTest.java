@@ -44,8 +44,8 @@ public class EpubExtractorTest {
             <navPoint id='c'><navLabel><text>Kết thúc</text></navLabel><content src='end.xhtml#end'/></navPoint></navMap></ncx>
             """);
         if(!epub3) {
-            put(files,"OEBPS/chương.xhtml","<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.1//EN' 'http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd'>"+new String(files.get("OEBPS/chương.xhtml"),StandardCharsets.UTF_8));
-            put(files,"OEBPS/toc.ncx","<!DOCTYPE ncx PUBLIC '-//NISO//DTD ncx 2005-1//EN' 'http://www.daisy.org/z3986/2005/ncx-2005-1.dtd'>"+new String(files.get("OEBPS/toc.ncx"),StandardCharsets.UTF_8));
+            put(files,"OEBPS/chương.xhtml","<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.1//EN'\n  'http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd'>"+new String(files.get("OEBPS/chương.xhtml"),StandardCharsets.UTF_8));
+            put(files,"OEBPS/toc.ncx","<!DOCTYPE ncx PUBLIC '-//NISO//DTD ncx 2005-1//EN'\r\n  'http://www.daisy.org/z3986/2005/ncx-2005-1.dtd'>"+new String(files.get("OEBPS/toc.ncx"),StandardCharsets.UTF_8));
         }
         return files;
     }

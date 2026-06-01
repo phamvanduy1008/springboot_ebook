@@ -17,7 +17,7 @@ public class JobRunner {
     private final ScheduledExecutorService heartbeat=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"job-heartbeat");t.setDaemon(true);return t;});
     public JobRunner(JobService jobs,ObjectProvider<JobHandler> handlers) {this.jobs=jobs;this.handlers=handlers;}
     @Bean public ThreadPoolTaskScheduler taskScheduler() {
-        var scheduler=new ThreadPoolTaskScheduler();scheduler.setPoolSize(1);scheduler.setWaitForTasksToCompleteOnShutdown(true);scheduler.setAwaitTerminationSeconds(30);return scheduler;
+        var scheduler=new ThreadPoolTaskScheduler();scheduler.setPoolSize(2);scheduler.setWaitForTasksToCompleteOnShutdown(true);scheduler.setAwaitTerminationSeconds(30);return scheduler;
     }
     @Scheduled(fixedDelay=1000) public void poll() {
         if(stopping.get())return;
@@ -26,12 +26,17 @@ public class JobRunner {
             if(stopping.get())return;
             var claimed=jobs.claim(handler.type());if(claimed.isEmpty())continue;
             var lease=claimed.get();
+            Runnable prepared=null;
             var pulse=heartbeat.scheduleAtFixedRate(()->{try {jobs.heartbeat(lease);} catch(RuntimeException ignored) { /* result transaction checks the DB lease */ }},20,20,TimeUnit.SECONDS);
-            try {var result=handler.prepare(lease);if(!stopping.get())jobs.complete(lease,result);}
+            try {prepared=handler.prepare(lease);if(!stopping.get())jobs.complete(lease,prepared);}
             catch(JobService.LeaseLost ignored) { /* A replacement worker owns the result. */ }
-            catch(Exception failure) {jobs.fail(lease,"JOB_PROCESSING_FAILED");} // never persist raw exception/path/payload
-            finally {pulse.cancel(false);}
+            catch(Exception failure) {
+                String code=failure instanceof JobHandler.Rejected rejected?rejected.code():failure instanceof java.io.IOException?"STORAGE_IO_ERROR":"JOB_PROCESSING_FAILED";
+                try {jobs.fail(lease,code,!(failure instanceof JobHandler.Rejected),()->handler.failed(lease));}catch(JobService.LeaseLost ignored) { }
+            }
+            finally {pulse.cancel(false);if(prepared instanceof AutoCloseable closeable)try {closeable.close();}catch(Exception ignored) { /* orphan maintenance retries */ }}
         }
     }
+    @Scheduled(fixedDelay=60000) public void maintain() {if(!stopping.get())for(var handler:handlers.orderedStream().toList())handler.maintain();}
     @PreDestroy public void stop() {stopping.set(true);heartbeat.shutdown();}
 }

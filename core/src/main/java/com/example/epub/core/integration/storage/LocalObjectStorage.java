@@ -60,6 +60,7 @@ public final class LocalObjectStorage implements ObjectStorage {
         ObjectInfo actual=stat(staged.key());
         if(!actual.equals(staged))throw new IOException("Staging integrity check failed");
         String key=identity("objects");
+        Files.setLastModifiedTime(path(staged.key()),java.nio.file.attribute.FileTime.from(Instant.now()));
         // No copy fallback: storage/staging must share a filesystem supporting atomic rename.
         Files.move(path(staged.key()),path(key),StandardCopyOption.ATOMIC_MOVE);
         return new ObjectInfo(key,actual.sha256(),actual.size());
@@ -82,5 +83,12 @@ public final class LocalObjectStorage implements ObjectStorage {
             }
         }
         return removed;
+    }
+    @Override public java.util.stream.Stream<String> objectsOlderThan(Instant olderThan) throws IOException {
+        checkedDirectories(root.resolve("objects"));
+        return Files.list(root.resolve("objects")).filter(file->{
+            if(!file.getFileName().toString().matches("[0-9a-f]{32}")||Files.isSymbolicLink(file)||!Files.isRegularFile(file,NOFOLLOW_LINKS))return false;
+            try {return Files.getLastModifiedTime(file,NOFOLLOW_LINKS).toInstant().isBefore(olderThan);}catch(IOException unavailable) {return false;}
+        }).map(file->"objects/"+file.getFileName());
     }
 }

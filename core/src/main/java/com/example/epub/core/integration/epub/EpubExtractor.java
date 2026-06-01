@@ -46,8 +46,8 @@ public final class EpubExtractor {
     private static Document xml(byte[] bytes) throws Exception {
         // Recognize only the inert standard XHTML declaration; every other DTD remains forbidden.
         String text=new String(bytes,StandardCharsets.UTF_8);
-        String without=text.replaceFirst("<!DOCTYPE html(?: PUBLIC [\"']-//W3C//DTD XHTML 1\\.[01]//EN[\"'] [\"']http://www\\.w3\\.org/TR/xhtml1[01]/DTD/xhtml1[01]\\.dtd[\"'])?\\s*>","")
-            .replaceFirst("<!DOCTYPE ncx PUBLIC [\"']-//NISO//DTD ncx 2005-1//EN[\"'] [\"']http://www\\.daisy\\.org/z3986/2005/ncx-2005-1\\.dtd[\"']\\s*>","");
+        String without=text.replaceFirst("<!DOCTYPE\\s+html(?:\\s+PUBLIC\\s+[\"']-//W3C//DTD XHTML 1\\.[01]//EN[\"']\\s+[\"']http://www\\.w3\\.org/TR/xhtml1[01]/DTD/xhtml1[01]\\.dtd[\"'])?\\s*>","")
+            .replaceFirst("<!DOCTYPE\\s+ncx\\s+PUBLIC\\s+[\"']-//NISO//DTD ncx 2005-1//EN[\"']\\s+[\"']http://www\\.daisy\\.org/z3986/2005/ncx-2005-1\\.dtd[\"']\\s*>","");
         if(!without.equals(text))bytes=utf(without);
         var factory=DocumentBuilderFactory.newInstance();factory.setNamespaceAware(true);factory.setXIncludeAware(false);factory.setExpandEntityReferences(false);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
@@ -96,7 +96,6 @@ public final class EpubExtractor {
             var entries=zip.getEntriesInPhysicalOrder();
             while(entries.hasMoreElements()) {
                 var entry=entries.nextElement();String name=archivePath(entry.getName());
-                if(count==0&&(!name.equals("mimetype")||entry.getMethod()!=ZipEntry.STORED))throw invalid();
                 if(++count>MAX_ENTRIES||entry.getSize()>MAX_ENTRY||entry.getSize()<0||entry.getCompressedSize()<0||entry.getSize()>Math.max(1024*1024,entry.getCompressedSize()*200))throw new Invalid("EPUB_LIMIT_EXCEEDED");
                 if(!names.add(name)||entry.isUnixSymlink()||!zip.canReadEntryData(entry)||entry.getGeneralPurposeBit().usesEncryption())throw invalid();
                 if(entry.isDirectory())continue;
@@ -202,10 +201,10 @@ public final class EpubExtractor {
             if(media.equals("application/x-dtbncx+xml"))ncx=target.path();
             if(Arrays.asList(properties.split("\\s+")).contains("nav"))nav=target.path();
             Item item=new Item(id,target.path(),extension==null?null:"EPUB/r"+(index++)+"."+extension,media,properties);items.put(id,item);
-            if(item.output()!=null) {required(files,item.path());if(byPath.put(item.path(),item)!=null)throw invalid();if(Arrays.asList(properties.split("\\s+")).contains("cover-image"))cover=item.output();}
+            if(item.output()!=null) {required(files,item.path());if(byPath.put(item.path(),item)!=null)throw invalid();if(item.media().startsWith("image/")&&Arrays.asList(properties.split("\\s+")).contains("cover-image"))cover=item.output();}
         }
         for(var meta:all(pkg,"meta"))if(meta.getAttribute("name").equals("cover")) {var item=items.get(meta.getAttribute("content"));if(item!=null&&item.media().startsWith("image/"))cover=item.output();}
-        var texts=new HashMap<String,String>();var titles=new HashMap<String,String>();var resources=new ArrayList<Resource>();var ids=new HashMap<String,Set<String>>();int nodeBudget=500000;
+        var texts=new HashMap<String,String>();var titles=new HashMap<String,String>();var resources=new ArrayList<Resource>();var ids=new HashMap<String,Set<String>>();int nodeBudget=500000;long artifactBytes=0;
         for(var item:byPath.values().stream().sorted(Comparator.comparing(Item::output)).toList()) {
             byte[] bytes=files.get(item.path());
             if(item.media().equals("application/xhtml+xml")) {
@@ -215,6 +214,9 @@ public final class EpubExtractor {
             else if(item.media().startsWith("image/")) {
                 if(bytes.length<8||!(item.media().equals("image/png")&&bytes[0]==(byte)137&&bytes[1]=='P'&&bytes[2]=='N'&&bytes[3]=='G'||item.media().equals("image/jpeg")&&bytes[0]==(byte)255&&bytes[1]==(byte)216||item.media().equals("image/gif")&&new String(bytes,0,3,StandardCharsets.US_ASCII).equals("GIF")))throw invalid();
             } else if(bytes.length<4||!(Arrays.equals(Arrays.copyOf(bytes,4),new byte[]{0,1,0,0})||Set.of("OTTO","wOFF","wOF2","true").contains(new String(bytes,0,4,StandardCharsets.US_ASCII))))throw invalid();
+            artifactBytes+=bytes.length;
+            if(texts.containsKey(item.path()))artifactBytes+=utf(texts.get(item.path())).length;
+            if(artifactBytes>MAX_TOTAL)throw new Invalid("EPUB_LIMIT_EXCEEDED");
             resources.add(new Resource(item.output(),item.media(),bytes));
         }
         var spine=new ArrayList<Spine>();var sourceIndexes=new HashMap<String,Integer>();

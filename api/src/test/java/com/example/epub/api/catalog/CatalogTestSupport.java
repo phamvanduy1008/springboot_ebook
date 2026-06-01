@@ -40,10 +40,17 @@ final class CatalogTestSupport implements AutoCloseable {
     UUID publish(UUID book) {
         var found=jdbc.queryForList("SELECT id FROM book_versions WHERE book_id=? ORDER BY version_no DESC LIMIT 1",UUID.class,book);
         UUID version=found.isEmpty()?UUID.randomUUID():found.getFirst();
+        if(!found.isEmpty()&&"READY".equals(jdbc.queryForObject("SELECT state FROM book_versions WHERE id=?",String.class,version))) {jdbc.update("UPDATE books SET published_version_id=?,current_version_id=?,status='PUBLISHED' WHERE id=?",version,version,book);return version;}
         if(found.isEmpty())jdbc.update("INSERT INTO book_versions(id,book_id,version_no,state) VALUES (?,?,1,'PROCESSING')",version,book);
+        else jdbc.update("UPDATE book_versions SET state='PROCESSING' WHERE id=?",version);
         UUID source=UUID.randomUUID(),reader=UUID.randomUUID();
         for(UUID object:List.of(source,reader))jdbc.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,?,?,?,1,'application/epub+zip','READY')",
             object,book,version,object.equals(source)?"SOURCE_EPUB":"READER_EPUB","test/"+object,"b".repeat(64));
+        UUID raw=UUID.randomUUID(),resource=UUID.randomUUID(),spine=UUID.randomUUID();
+        for(UUID object:List.of(raw,resource))jdbc.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,?,?,?,1,?,'READY')",object,book,version,object.equals(raw)?"RAW_TEXT":"RESOURCE","test/"+object,"c".repeat(64),object.equals(raw)?"text/plain":"application/xhtml+xml");
+        jdbc.update("INSERT INTO reader_resources(book_version_id,book_id,href,object_id) VALUES (?,?,'EPUB/r0.xhtml',?)",version,book,resource);
+        jdbc.update("INSERT INTO spine_items(id,book_version_id,book_id,spine_index,href,raw_text_object_id,raw_utf16_length) VALUES (?,?,?,0,'EPUB/r0.xhtml',?,1)",spine,version,book,raw);
+        jdbc.update("INSERT INTO toc_entries(book_version_id,book_id,ordinal,label,spine_item_id) VALUES (?,?,0,'Test chapter',?)",version,book,spine);
         jdbc.update("UPDATE book_versions SET source_object_id=?,reader_object_id=?,extractor_version='test',sanitizer_version='test',ready_at=now(),state='READY' WHERE id=?",source,reader,version);
         jdbc.update("UPDATE books SET published_version_id=?,current_version_id=?,status='PUBLISHED' WHERE id=?",version,version,book);return version;
     }
@@ -53,6 +60,7 @@ final class CatalogTestSupport implements AutoCloseable {
             for(UUID book:books) {
                 jdbc.update("UPDATE books SET status='DELETED',deleted_at=now(),published_version_id=NULL,current_version_id=NULL WHERE id=?",book);
                 jdbc.execute("SET CONSTRAINTS version_source_fk,version_reader_fk,version_cover_fk DEFERRED");
+                jdbc.update("DELETE FROM toc_entries WHERE book_id=?",book);jdbc.update("DELETE FROM spine_items WHERE book_id=?",book);jdbc.update("DELETE FROM reader_resources WHERE book_id=?",book);
                 jdbc.update("DELETE FROM stored_objects WHERE book_id=?",book);jdbc.update("DELETE FROM book_versions WHERE book_id=?",book);
                 jdbc.update("DELETE FROM books WHERE id=?",book);jdbc.update("DELETE FROM audit_logs WHERE target_id=?",book);
             }

@@ -3,6 +3,7 @@ import com.example.epub.core.model.epub.EpubModels.*;
 import com.example.epub.core.repository.epub.UploadRepository;
 import com.example.epub.core.integration.storage.*;
 import com.example.epub.core.integration.epub.EpubExtractor;
+import com.example.epub.core.integration.epub.EpubEnvelope;
 import com.example.epub.core.service.jobs.JobService;
 import com.example.epub.core.service.identity.*;
 import com.example.epub.core.service.catalog.CatalogValidation;
@@ -11,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.ZipInputStream;
 import org.springframework.transaction.support.TransactionTemplate;
 import static com.example.epub.core.service.epub.EpubFailure.Reason.*;
 
@@ -22,6 +22,7 @@ public class UploadService {
     public UploadService(UploadRepository uploads,ObjectStorage storage,JobService jobs,AccountService accounts,TransactionTemplate tx,long privateQuota,long adminQuota) {
         this.uploads=uploads;this.storage=storage;this.jobs=jobs;this.accounts=accounts;this.tx=tx;this.privateQuota=privateQuota;this.adminQuota=adminQuota;
         tx.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.setTimeout(120);
     }
     private com.example.epub.core.model.identity.Account actor(Actor actor) {
         var user=accounts.byId(actor.id()).orElse(null);if(!AccessPolicy.active(user)||!Objects.equals(user.passwordChangedAt(),actor.credentialEpoch()))throw new AccessPolicy.Denied(false);return user;
@@ -39,7 +40,7 @@ public class UploadService {
         authorize(actor,book,publicUpload); // reject unauthorized uploads before consuming bytes
         ObjectStorage.ObjectInfo staged=null,source=null;AtomicBoolean keep=new AtomicBoolean(false);
         try {
-            staged=storage.stage(input,EpubExtractor.MAX_SOURCE);signature(staged.key());source=storage.promote(staged);
+            staged=storage.stage(input,EpubExtractor.MAX_SOURCE);signature(staged);source=storage.promote(staged);
             var object=source;String fingerprint=hash(Objects.toString(book,"new-private"),Boolean.toString(publicUpload),Long.toString(revision),title,author,rights,source.sha256());
             final String finalTitle=title,finalAuthor=author,finalRights=rights;
             return tx.execute(status->{
@@ -67,11 +68,8 @@ public class UploadService {
         finally {if(!keep.get()) {quietDelete(source==null?null:source.key());quietDelete(staged==null?null:staged.key());}}
     }
     private void quietDelete(String key) {if(key!=null)try {storage.delete(key);}catch(IOException ignored) { /* orphan sweeper retries later */ }}
-    private void signature(String key) throws IOException {
-        try(var input=storage.open(key)) {try(var zip=new ZipInputStream(input,StandardCharsets.UTF_8)) {
-            var entry=zip.getNextEntry();
-            if(entry==null||!entry.getName().equals("mimetype")||!Arrays.equals(zip.readNBytes(21),"application/epub+zip".getBytes(StandardCharsets.US_ASCII)))throw new EpubFailure(UNSUPPORTED);
-        } catch(IOException invalid) {throw new EpubFailure(UNSUPPORTED);}}
+    private void signature(ObjectStorage.ObjectInfo staged) {
+        try {EpubEnvelope.validate(()->storage.open(staged.key()),staged.size());}catch(IOException invalid) {throw new EpubFailure(UNSUPPORTED);}
     }
     private static String hash(String... values) {
         try {var digest=MessageDigest.getInstance("SHA-256");for(String value:values) {byte[] bytes=value.getBytes(StandardCharsets.UTF_8);digest.update(java.nio.ByteBuffer.allocate(4).putInt(bytes.length).array());digest.update(bytes);}return HexFormat.of().formatHex(digest.digest());}catch(NoSuchAlgorithmException impossible) {throw new IllegalStateException(impossible);}

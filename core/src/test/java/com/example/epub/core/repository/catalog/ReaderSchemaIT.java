@@ -26,6 +26,8 @@ class ReaderSchemaIT {
             assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE toc_entries SET parent_id=?,ordinal=0 WHERE ordinal=1",parent));
             assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE toc_entries SET parent_id=? WHERE id=?",parent,parent));
             UUID source=UUID.randomUUID(),reader=UUID.randomUUID();for(UUID id:new UUID[]{source,reader})db.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,?,?,?,1,'application/epub+zip','READY')",id,book,version,id.equals(source)?"SOURCE_EPUB":"READER_EPUB","test/"+id,"b".repeat(64));
+            UUID resource=UUID.randomUUID();db.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,'RESOURCE',?,?,0,'application/xhtml+xml','READY')",resource,book,version,"test/"+resource,"c".repeat(64));
+            db.update("INSERT INTO reader_resources(book_version_id,book_id,href,object_id) VALUES (?,?,'EPUB/r0.xhtml',?)",version,book,resource);
             db.update("UPDATE book_versions SET source_object_id=?,reader_object_id=?,extractor_version='test',sanitizer_version='test',ready_at=now(),state='READY' WHERE id=?",source,reader,version);
             assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE spine_items SET title='changed' WHERE id=?",spine));
             assertThrows(DataIntegrityViolationException.class,()->db.update("DELETE FROM toc_entries WHERE ordinal=1"));
