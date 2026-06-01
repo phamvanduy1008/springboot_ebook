@@ -37,13 +37,16 @@ public class JobRepository {
         return jdbc.update("UPDATE jobs SET status='SUCCEEDED',lease_token=NULL,lease_until=NULL,last_error_code=NULL,updated_at=clock_timestamp() WHERE id=? AND status='RUNNING' AND lease_token=? AND lease_until>clock_timestamp()",job.id(),job.token())==1;
     }
     public boolean fail(Lease job,String safeCode) {
+        return fail(job,safeCode,true);
+    }
+    public boolean fail(Lease job,String safeCode,boolean retry) {
         if(safeCode==null||!safeCode.matches("[A-Z][A-Z0-9_]{0,79}"))throw new IllegalArgumentException("Safe error code required");
         return jdbc.update("""
-            UPDATE jobs SET status=CASE WHEN attempts>=max_attempts THEN 'FAILED' ELSE 'QUEUED' END,
+            UPDATE jobs SET status=CASE WHEN NOT ? OR attempts>=max_attempts THEN 'FAILED' ELSE 'QUEUED' END,
               available_at=clock_timestamp()+make_interval(secs=>least(300,5*attempts*attempts)),
               lease_token=NULL,lease_until=NULL,last_error_code=?,updated_at=clock_timestamp()
             WHERE id=? AND status='RUNNING' AND lease_token=? AND lease_until>clock_timestamp()
-            """,safeCode,job.id(),job.token())==1;
+            """,retry,safeCode,job.id(),job.token())==1;
     }
     public int sweep() {
         return jdbc.update("""

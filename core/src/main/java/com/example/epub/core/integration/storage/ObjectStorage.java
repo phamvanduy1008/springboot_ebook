@@ -13,4 +13,6 @@ public interface ObjectStorage {
     ObjectInfo stat(String key) throws IOException;
     void delete(String key) throws IOException;
     int purgeStaging(Instant olderThan) throws IOException;
+    /** Caller closes the lazy stream. Only server keys are returned; never expose them through HTTP. */
+    java.util.stream.Stream<String> objectsOlderThan(Instant olderThan) throws IOException;
 }

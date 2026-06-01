@@ -52,9 +52,15 @@ class CatalogSchemaIT {
         UUID id=UUID.randomUUID();jdbc.update("INSERT INTO book_versions(id,book_id,version_no) VALUES (?,?,?)",id,book,number);return id;
     }
     private void ready(JdbcTemplate jdbc,UUID book,UUID version) {
+        jdbc.update("UPDATE book_versions SET state='PROCESSING' WHERE id=?",version);
         UUID source=UUID.randomUUID(),reader=UUID.randomUUID();
         for(var object:new UUID[]{source,reader})jdbc.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,?,?,?,1,'application/epub+zip','READY')",
             object,book,version,object.equals(source)?"SOURCE_EPUB":"READER_EPUB","test/"+object,"a".repeat(64));
+        UUID raw=UUID.randomUUID(),resource=UUID.randomUUID(),spine=UUID.randomUUID();
+        for(UUID object:new UUID[]{raw,resource})jdbc.update("INSERT INTO stored_objects(id,book_id,book_version_id,kind,object_key,sha256,size_bytes,media_type,state) VALUES (?,?,?,?,?,?,1,?,'READY')",object,book,version,object.equals(raw)?"RAW_TEXT":"RESOURCE","test/"+object,"c".repeat(64),object.equals(raw)?"text/plain":"application/xhtml+xml");
+        jdbc.update("INSERT INTO reader_resources(book_version_id,book_id,href,object_id) VALUES (?,?,'EPUB/r0.xhtml',?)",version,book,resource);
+        jdbc.update("INSERT INTO spine_items(id,book_version_id,book_id,spine_index,href,raw_text_object_id,raw_utf16_length) VALUES (?,?,?,0,'EPUB/r0.xhtml',?,1)",spine,version,book,raw);
+        jdbc.update("INSERT INTO toc_entries(book_version_id,book_id,ordinal,label,spine_item_id) VALUES (?,?,0,'Test chapter',?)",version,book,spine);
         jdbc.update("UPDATE book_versions SET source_object_id=?,reader_object_id=?,extractor_version='test',sanitizer_version='test',ready_at=now(),state='READY' WHERE id=?",source,reader,version);
     }
 }

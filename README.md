@@ -322,7 +322,8 @@ This probe does not install an upload route or production ingest handler.
 
 Send the file as a raw `application/epub+zip` body, with session cookie,
 `X-CSRF-TOKEN` and UUID `Idempotency-Key`. The maximum is 64 MiB; both declared
-length and streamed bytes are checked. The EPUB `mimetype` entry must be first.
+length and streamed bytes are checked. A bounded directory/mimetype probe checks
+the EPUB envelope without parsing XML or inflating the book's other resources.
 
 * `POST /api/v1/admin/books/{bookId}/epub?revision=N` stages a public book version
   for an administrator; optional `rightsNote` records the distribution basis.
@@ -347,8 +348,49 @@ The production extractor now preflights the ZIP32 directory count before archive
 allocation, caps aggregate XML elements at 500000 and discards each DOM after
 deriving text/anchors. It accepts the exact inert standard XHTML/NCX DOCTYPE
 declarations after stripping them; internal subsets and every other DTD remain
-forbidden, and no resolver can access files or the network. ZIP64/multidisk and
-nonstandard first/compressed mimetype entries are unsupported under these limits.
+forbidden, and no resolver can access files or the network. ZIP64/multidisk is
+unsupported. Legacy inputs may put/compress mimetype elsewhere in the archive;
+the output always normalizes it to the first uncompressed entry.
 Spine and TOC persist separately, including nested parents and multiple fragments
 per file. READY reader structure is immutable; raw text remains UTF-8 in storage
 with UTF-16 string offsets/lengths, independently of any future TTS normalization.
+
+## Local ingest worker
+
+Run the packaged API and headless worker against the same database and absolute
+`STORAGE_ROOT`. On Windows, after building, use `tools/Start-WorkerLocal.ps1
+-Database Ebook`; it starts hidden with a 1536 MiB heap and records its PID/log
+directory. Confirm `Started WorkerApplication` in the log before relying on it.
+On any OS use `java -Xmx1536m -jar worker/target/worker-0.1.0-SNAPSHOT-exec.jar`
+with the standard DB/storage environment. `EPUB_INGEST_ENABLED=false` disables
+the handler for maintenance. This is an independent process; API startup alone
+does not process queued uploads.
+
+The handler verifies source integrity, extracts once, promotes and checks all
+reader/resource/raw-text objects, then persists them under the live job lease.
+Only that transaction makes the immutable version READY and advances the current
+pointer when its version number is newer. It never publishes the book or starts
+TTS. Source plus expanded artifacts are charged to the account's lifetime quota.
+Combined sanitized resource/raw-text output is also capped at 256 MiB.
+
+Permanent EPUB errors fail without retry; transient errors retry with the queue's
+backoff. Terminal failures release quota and remove copied failed sources after
+commit. Prepared files from a lost lease are discarded if unreferenced. Worker
+maintenance reconciles terminal crash jobs every minute and scans 48-hour-old
+staging/orphan objects hourly, checking DB references before deletion. Promotion
+refreshes mtime; upload/result transactions have a 120-second timeout. Original
+files outside storage are never removed. Artifact/TOC/resource rows cannot be
+appended or edited after READY; referenced historical versions are retained.
+
+For existing local books, the worker also has a trusted operator import mode,
+enabled only in the local profile. A UTF-8 TSV manifest contains `book-UUID`, TAB,
+and an EPUB path relative to one explicit root. It never discovers arbitrary host
+directories or exposes paths through HTTP. Add these worker arguments:
+`--app.local-import.enabled=true --app.local-import.root=<absolute-source-root>
+--app.local-import.manifest=<absolute-tsv> --app.local-import.actor=<active-admin-UUID>
+--app.local-import.limit=1`. The default limit is one, maximum 2000. The operator
+already needs DB/server access; normal upload/admin/epoch/quota policies still
+apply. Sources outside the root, symlinks and other file types are rejected.
+Matching pending/READY source hashes for this extractor version are skipped.
+Imports enqueue ingestion and leave publication to a separate administrator
+action. The original files and existing frontend are preserved.

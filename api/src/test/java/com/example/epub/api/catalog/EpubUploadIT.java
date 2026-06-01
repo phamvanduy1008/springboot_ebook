@@ -29,7 +29,7 @@ class EpubUploadIT {
     @Test void uploadsAreAsyncIdempotentQuotaBoundAndSessionAuthorized() throws Exception {
         try(var context=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0","--app.local-seed.enabled=false","--app.storage-root="+root,"--app.epub.private-quota-bytes=100000","--logging.level.root=WARN","--debug=false");var f=new CatalogTestSupport(context.getBean(JdbcTemplate.class))) {
             int port=((WebServerApplicationContext)context).getWebServer().getPort();UUID admin=f.user("ADMIN"),owner=f.user("USER"),other=f.user("USER"),unverified=f.user("USER"),book=f.publicDraft("Upload test","Writer",null);
-            f.jdbc.update("UPDATE users SET email_verified_at=NULL WHERE id=?",unverified);byte[] bytes=EpubTestFiles.book();
+            f.jdbc.update("UPDATE users SET email_verified_at=NULL WHERE id=?",unverified);byte[] bytes=EpubTestFiles.book(false,true);
             try(var a=new Browser(port);var b=new Browser(port);var c=new Browser(port);var d=new Browser(port);var guest=new Browser(port)) {
                 try {
                     a.login(admin);b.login(owner);c.login(other);d.login(unverified);guest.csrf();
@@ -45,7 +45,7 @@ class EpubUploadIT {
                     var value=JSON.readTree(accepted.body());UUID version=UUID.fromString(value.get("versionId").asText());
                     assertEquals("PROCESSING",f.jdbc.queryForObject("SELECT state FROM book_versions WHERE id=?",String.class,version));
                     assertEquals(accepted.body(),send(a,"POST",publicRoute,key,bytes,true).body());
-                    byte[] changed=Arrays.copyOf(bytes,bytes.length+1);assertEquals(409,send(a,"POST",publicRoute,key,changed,true).statusCode());
+                    byte[] changed=EpubTestFiles.book(true);assertEquals(409,send(a,"POST",publicRoute,key,changed,true).statusCode());
                     assertEquals(409,send(a,"POST",publicRoute,UUID.randomUUID(),bytes,true).statusCode());
                     assertEquals(1,f.jdbc.queryForObject("SELECT count(*) FROM book_versions WHERE book_id=?",Integer.class,book));
                     String object=f.jdbc.queryForObject("SELECT o.object_key FROM stored_objects o WHERE o.book_version_id=?",String.class,version);assertEquals(bytes.length,context.getBean(ObjectStorage.class).stat(object).size());

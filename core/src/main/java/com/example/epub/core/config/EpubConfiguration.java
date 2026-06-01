@@ -14,6 +14,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @AutoConfiguration(after={JobConfiguration.class,StorageConfiguration.class})
 @ConditionalOnProperty(name="app.persistence.enabled",havingValue="true")
 public class EpubConfiguration {
+    @Bean @ConditionalOnProperty(name="app.epub.ingest-enabled",havingValue="true",matchIfMissing=true)
+    public com.example.epub.core.repository.epub.IngestRepository ingestRepository(JdbcTemplate jdbc) {return new com.example.epub.core.repository.epub.IngestRepository(jdbc);}
+    @Bean @ConditionalOnProperty(name="app.epub.ingest-enabled",havingValue="true",matchIfMissing=true)
+    public com.example.epub.core.service.epub.IngestService ingestService(com.example.epub.core.repository.epub.IngestRepository ingest,ObjectStorage storage,PlatformTransactionManager manager) {return new com.example.epub.core.service.epub.IngestService(ingest,storage,new TransactionTemplate(manager));}
     @Bean public UploadRepository uploadRepository(JdbcTemplate jdbc) {return new UploadRepository(jdbc);}
     @Bean public UploadService uploadService(UploadRepository uploads,ObjectStorage storage,JobService jobs,AccountService accounts,PlatformTransactionManager manager,Environment env) {
         return new UploadService(uploads,storage,jobs,accounts,new TransactionTemplate(manager),env.getProperty("app.epub.private-quota-bytes",Long.class,1073741824L),env.getProperty("app.epub.admin-quota-bytes",Long.class,107374182400L));

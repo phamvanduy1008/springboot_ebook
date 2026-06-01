@@ -8,4 +8,5 @@ public final class EpubModels {
     public record Book(UUID id,UUID owner,String visibility,String status,long revision) { }
     public record Receipt(String fingerprint,Accepted result) { }
     public record ObjectRow(UUID id,String key,String hash,long size,String media,String kind) { }
+    public record Source(UUID bookId,UUID versionId,ObjectRow object) { }
 }
