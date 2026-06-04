@@ -7,6 +7,160 @@ info:
 servers:
 - url: /
 paths:
+  /api/v1/admin/books/{book}/publish:
+    post:
+      operationId: publishBook
+      summary: Publish a verified READY version
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              - versionId
+              properties:
+                revision:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                versionId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Original idempotent publication result; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bookId
+                - status
+                - revision
+                properties:
+                  bookId:
+                    type: string
+                    format: uuid
+                  publishedVersionId:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  status:
+                    type: string
+                    enum:
+                    - PUBLISHED
+                    - HIDDEN
+                  revision:
+                    type: integer
+                    format: int64
+        '400':
+          description: Invalid body/key
+        '401':
+          description: Session required
+        '403':
+          description: Administrator and CSRF required
+        '404':
+          description: Missing/private/deleted book
+        '409':
+          description: Revision/idempotency conflict or version not READY in this book
+        '503':
+          description: Artifact files missing or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/admin/books/{book}/unpublish:
+    post:
+      operationId: unpublishBook
+      summary: Hide a public book and clear publication
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Csrf'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              properties:
+                revision:
+                  type: integer
+                  format: int64
+                  minimum: 0
+      responses:
+        '200':
+          description: Original idempotent publication result; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bookId
+                - status
+                - revision
+                properties:
+                  bookId:
+                    type: string
+                    format: uuid
+                  publishedVersionId:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  status:
+                    type: string
+                    enum:
+                    - PUBLISHED
+                    - HIDDEN
+                  revision:
+                    type: integer
+                    format: int64
+        '400':
+          description: Invalid body/key
+        '401':
+          description: Session required
+        '403':
+          description: Administrator and CSRF required
+        '404':
+          description: Missing/private/deleted book
+        '409':
+          description: Revision/idempotency conflict or version not READY in this book
+        '503':
+          description: Artifact files missing or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/admin/books/{book}/epub:
     post:
       operationId: uploadPublicEpub

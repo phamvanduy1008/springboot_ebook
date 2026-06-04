@@ -58,6 +58,7 @@ final class CatalogTestSupport implements AutoCloseable {
         var transactions=new TransactionTemplate(new DataSourceTransactionManager(Objects.requireNonNull(jdbc.getDataSource())));
         transactions.executeWithoutResult(tx -> {
             for(UUID book:books) {
+                jdbc.update("DELETE FROM epub_publication_receipts WHERE book_id=?",book);
                 jdbc.update("UPDATE books SET status='DELETED',deleted_at=now(),published_version_id=NULL,current_version_id=NULL WHERE id=?",book);
                 jdbc.execute("SET CONSTRAINTS version_source_fk,version_reader_fk,version_cover_fk DEFERRED");
                 jdbc.update("DELETE FROM toc_entries WHERE book_id=?",book);jdbc.update("DELETE FROM spine_items WHERE book_id=?",book);jdbc.update("DELETE FROM reader_resources WHERE book_id=?",book);
