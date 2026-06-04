@@ -394,3 +394,19 @@ apply. Sources outside the root, symlinks and other file types are rejected.
 Matching pending/READY source hashes for this extractor version are skipped.
 Imports enqueue ingestion and leave publication to a separate administrator
 action. The original files and existing frontend are preserved.
+
+## Publishing verified versions
+
+`POST /api/v1/admin/books/{bookId}/publish` accepts `{versionId, revision}` with
+session, CSRF and UUID Idempotency-Key. It locks the administrator/book, verifies
+that the version is READY and belongs to that public book, then checks every
+stored file's actual hash and size before setting the published pointer. It never
+turns PROCESSING/FAILED/UPLOADING into READY or converts a private book to public.
+
+`POST /api/v1/admin/books/{bookId}/unpublish` accepts `{revision}` with the same
+headers and moves the book to HIDDEN, clearing its published pointer. Both actions
+use revision checks, transactionally recorded idempotency receipts and audit.
+Retries return the original result without replaying the action; refetch current
+book state after a historical replay. Hiding/deleting metadata never removes
+historical READY artifacts or references to progress/audio. Missing/tampered files
+block publication until restored; there is no unsafe force-publish option.
