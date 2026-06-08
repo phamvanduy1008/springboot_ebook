@@ -14,6 +14,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @AutoConfiguration(after={JobConfiguration.class,StorageConfiguration.class})
 @ConditionalOnProperty(name="app.persistence.enabled",havingValue="true")
 public class EpubConfiguration {
+    @Bean public com.example.epub.core.repository.epub.ReaderRepository readerRepository(JdbcTemplate jdbc) {return new com.example.epub.core.repository.epub.ReaderRepository(jdbc);}
+    @Bean public com.example.epub.core.service.epub.ReaderService readerService(com.example.epub.core.repository.epub.ReaderRepository reader,ObjectStorage storage,AccountService accounts,PlatformTransactionManager manager) {return new com.example.epub.core.service.epub.ReaderService(reader,storage,accounts,manager);}
     @Bean public com.example.epub.core.repository.epub.PublicationRepository publicationRepository(JdbcTemplate jdbc) {return new com.example.epub.core.repository.epub.PublicationRepository(jdbc);}
     @Bean public com.example.epub.core.service.epub.PublicationService publicationService(com.example.epub.core.repository.epub.PublicationRepository publication,ObjectStorage storage,AccountService accounts,PlatformTransactionManager manager) {return new com.example.epub.core.service.epub.PublicationService(publication,storage,accounts,new TransactionTemplate(manager));}
     @Bean @ConditionalOnProperty(name="app.epub.ingest-enabled",havingValue="true",matchIfMissing=true)

@@ -410,3 +410,41 @@ Retries return the original result without replaying the action; refetch current
 book state after a historical replay. Hiding/deleting metadata never removes
 historical READY artifacts or references to progress/audio. Missing/tampered files
 block publication until restored; there is no unsafe force-publish option.
+
+## Authorized reader delivery
+
+`GET /api/v1/books/{bookId}/manifest` selects the published public version or the
+owner's current private version. Explicit version manifests are at
+`/api/v1/books/{bookId}/versions/{versionId}/manifest`. A public draft/hidden/deleted
+book is never a reader preview, including for administrators. Private history
+versions remain accessible only to their active owner; administrators have no
+override. The immutable manifest returns reader/cover/resource URLs, ordered
+spine and a parent-linked TOC with preserved fragment IDs and UTF-16 text lengths.
+
+Use the manifest's `reader.url` for the sanitized EPUB, or its resource URLs for
+sanitized XHTML, CSS, images and fonts. Resource names resolve through the version
+mapping, never to arbitrary storage paths; relative chapter/style links work
+within that namespace. `GET /api/v1/books/{bookId}/cover` selects the authorized
+cover. No original EPUB or raw-text download route exists. Delivery never reparses
+the source; file responses verify the stored reader/resource hash and size.
+
+ETag/If-None-Match and HEAD are supported after checking current permissions.
+Private responses use `private, no-store` and Vary Cookie; public responses require
+revalidation, so hiding/deleting also blocks cached conditional requests. Range
+is intentionally unsupported (`Accept-Ranges: none`); authorized Range requests
+receive the full 200 body. Assets use nosniff and a restrictive script-free CSP.
+Same-origin frames are allowed for reader embedding; cross-origin frames remain
+blocked. Use the existing same-origin/proxy routing, not a public storage URL.
+
+Catalog/library `readerAvailable` now reflects actual READY pointers; covers use
+the authorized cover endpoint. Metadata-only drafts remain unavailable to read.
+New private imports are saved once on the owner's Want-to-read shelf; uploading a
+new version preserves existing shelf/favorite/history choices. This does not set
+reading progress or record an overview view. Source language, attribution and
+rights text are retained in the sanitized package; unknown language stays `und`.
+The renderer/frontend is a later task. Extractor `local-epub-2` / sanitizer
+`allowlist-2` records NAV/NCX/FALLBACK provenance in the manifest; fallback spine
+links are navigational sections, not invented chapters (chapter count unknown).
+Legacy versions are labeled LEGACY. New extraction/sanitizer changes create new
+versions; existing READY bytes are never rewritten. CSS rule scanning is linear
+and long URI/element limits also apply to delivery artifacts.

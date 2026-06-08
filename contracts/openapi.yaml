@@ -2,11 +2,729 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Authentication, personal library, catalog discovery and asynchronous local EPUB upload. Public reading
+  description: Authentication, personal library, catalog discovery, local EPUB ingestion/publication and authorized reader delivery. Public reading
     requires PUBLIC/PUBLISHED and a verified READY published version. Cloud deployment is deferred.
 servers:
 - url: /
 paths:
+  /api/v1/books/{book}/manifest:
+    get:
+      operationId: getBookManifest
+      summary: Read an authorized immutable manifest, ordered spine and nested TOC
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderManifest'
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/books/{book}/versions/{version}/manifest:
+    get:
+      operationId: getVersionManifest
+      summary: Read an authorized immutable manifest, ordered spine and nested TOC
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderManifest'
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/books/{book}/versions/{version}/reader.epub:
+    get:
+      operationId: getReaderEpub
+      summary: Download the sanitized reader EPUB
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+          content:
+            application/epub+zip:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+    head:
+      operationId: getReaderEpubHead
+      summary: Read authorized asset headers without body
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized asset metadata
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+        '304':
+          description: Not modified after authorization
+        '404':
+          description: Missing or inaccessible
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/books/{book}/cover:
+    get:
+      operationId: getBookCover
+      summary: Read the authorized cover
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+    head:
+      operationId: getBookCoverHead
+      summary: Read authorized asset headers without body
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized asset metadata
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+        '304':
+          description: Not modified after authorization
+        '404':
+          description: Missing or inaccessible
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/books/{book}/versions/{version}/cover:
+    get:
+      operationId: getVersionCover
+      summary: Read the authorized cover
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+    head:
+      operationId: getVersionCoverHead
+      summary: Read authorized asset headers without body
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized asset metadata
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+        '304':
+          description: Not modified after authorization
+        '404':
+          description: Missing or inaccessible
+        default:
+          $ref: '#/components/responses/Problem'
+  /api/v1/books/{book}/versions/{version}/resources/{name}:
+    get:
+      operationId: getReaderResource
+      summary: Read a sanitized chapter, image, CSS or font
+      description: Public requests require the currently published READY version. Private
+        access requires the active owner session, including for administrators. Hidden/deleted
+        books are checked before conditional responses. No source/raw-text storage route
+        exists. HTTP Range is not supported; a Range request receives the full 200 response
+        after authorization. No EPUB is reparsed during delivery.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^r[0-9]+\.(xhtml|css|jpg|png|gif|ttf|otf|woff|woff2)$
+        description: Server-assigned reader entry name from manifest; never a filesystem/object
+          key.
+      responses:
+        '200':
+          description: Authorized content
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified after current authorization is rechecked
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+        '404':
+          description: Missing/inaccessible/unpublished book, version or asset
+        '503':
+          description: Local artifact unavailable or integrity mismatch
+        default:
+          $ref: '#/components/responses/Problem'
+    head:
+      operationId: getReaderResourceHead
+      summary: Read authorized asset headers without body
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^r[0-9]+\.(xhtml|css|jpg|png|gif|ttf|otf|woff|woff2)$
+        description: Server-assigned reader entry name from manifest; never a filesystem/object
+          key.
+      responses:
+        '200':
+          description: Authorized asset metadata
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              description: Private responses use private, no-store; public responses
+                require revalidation.
+            Vary:
+              schema:
+                type: string
+              description: Cookie
+            X-Content-Type-Options:
+              schema:
+                type: string
+              description: nosniff
+            Accept-Ranges:
+              schema:
+                type: string
+                enum:
+                - none
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+        '304':
+          description: Not modified after authorization
+        '404':
+          description: Missing or inaccessible
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/admin/books/{book}/publish:
     post:
       operationId: publishBook
@@ -2328,6 +3046,139 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    ReaderAsset:
+      type: object
+      required:
+      - id
+      - href
+      - url
+      - mediaType
+      - sizeBytes
+      - sha256
+      properties:
+        id:
+          type: string
+          format: uuid
+        href:
+          type: string
+        url:
+          type: string
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+    ReaderSpine:
+      type: object
+      required:
+      - id
+      - index
+      - href
+      - resourceUrl
+      - linear
+      - rawUtf16Length
+      properties:
+        id:
+          type: string
+          format: uuid
+        index:
+          type: integer
+          minimum: 0
+        title:
+          oneOf:
+          - type: string
+          - type: 'null'
+        href:
+          type: string
+        resourceUrl:
+          type: string
+        linear:
+          type: boolean
+        rawUtf16Length:
+          type: integer
+          minimum: 0
+          description: Canonical raw text length in UTF-16 code units, independent of
+            TTS normalization.
+    ReaderToc:
+      type: object
+      required:
+      - id
+      - ordinal
+      - label
+      - chapter
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        ordinal:
+          type: integer
+          minimum: 0
+        label:
+          type: string
+        spineItemId:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        fragment:
+          oneOf:
+          - type: string
+          - type: 'null'
+        chapter:
+          type: boolean
+    ReaderManifest:
+      type: object
+      required:
+      - bookId
+      - versionId
+      - reader
+      - spine
+      - toc
+      - resources
+      - privateBook
+      - tocSource
+      properties:
+        tocSource:
+          type: string
+          enum: [NAV, NCX, FALLBACK, LEGACY]
+          description: FALLBACK links are sections; authored chapter count is unknown.
+        bookId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        reader:
+          $ref: '#/components/schemas/ReaderAsset'
+        cover:
+          oneOf:
+          - $ref: '#/components/schemas/ReaderAsset'
+          - type: 'null'
+        spine:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReaderSpine'
+        toc:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReaderToc'
+          description: Preorder flat tree with parentId; multiple entries can target one
+            spine item using different fragment IDs.
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReaderAsset'
+        privateBook:
+          type: boolean
     EpubAccepted:
       type: object
       required:
@@ -3004,7 +3855,7 @@ components:
           maxLength: 2000
         readerAvailable:
           type: boolean
-          const: false
+          description: True for a published READY public version or an accessible owned private book with a current READY version. Metadata-only drafts remain false.
     PublicCatalogPage:
       type: object
       additionalProperties: false

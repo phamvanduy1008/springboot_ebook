@@ -47,7 +47,7 @@ public class IngestService implements JobHandler {
             var spineIds=new ArrayList<UUID>();for(int i=0;i<result.spine().size();i++) {var item=result.spine().get(i);UUID id=UUID.randomUUID();spineIds.add(id);ingest.spine(book,version,id,i,item.href(),item.title(),item.linear(),raw.get(i).id(),item.rawText().length());}
             var tocIds=new ArrayList<UUID>();for(var entry:result.toc()) {UUID id=UUID.randomUUID();tocIds.add(id);ingest.toc(book,version,id,entry.parent()<0?null:tocIds.get(entry.parent()),entry.ordinal(),entry.label(),entry.spineIndex()==null?null:spineIds.get(entry.spineIndex()),entry.fragment(),entry.chapter());}
             long total=source.object().size();for(var object:objects)total=Math.addExact(total,object.size());if(!ingest.quota(version,total))throw new Rejected("EPUB_QUOTA_EXCEEDED");
-            var cover=resources.get(result.coverHref());ingest.ready(book,version,reader.id(),cover==null?null:cover.id(),EpubExtractor.VERSION,EpubExtractor.SANITIZER,(int)result.toc().stream().filter(EpubExtractor.Toc::chapter).count());
+            var cover=resources.get(result.coverHref());Integer count=result.tocSource().equals("FALLBACK")?null:(int)result.toc().stream().filter(EpubExtractor.Toc::chapter).count();ingest.ready(book,version,reader.id(),cover==null?null:cover.id(),EpubExtractor.VERSION,EpubExtractor.SANITIZER,count,result.tocSource());
         }
         @Override public void close() {discard(objects);}
     }

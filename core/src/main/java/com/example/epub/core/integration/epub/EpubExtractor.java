@@ -18,7 +18,7 @@ import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 
 /** Bounded offline reflowable EPUB2/3 extractor; deliberately conservative CSS. */
 public final class EpubExtractor {
-    public static final String VERSION="local-epub-1", SANITIZER="allowlist-1";
+    public static final String VERSION="local-epub-2", SANITIZER="allowlist-2";
     public static final int MAX_SOURCE=64*1024*1024, MAX_ENTRY=16*1024*1024, MAX_TOTAL=256*1024*1024, MAX_ENTRIES=10000;
     private static final String XHTML="http://www.w3.org/1999/xhtml";
     public static final class Invalid extends IOException {
@@ -29,7 +29,7 @@ public final class EpubExtractor {
     public record Spine(String href,String title,boolean linear,String rawText) { }
     public record Toc(int parent,int ordinal,String label,Integer spineIndex,String fragment,boolean chapter) { }
     public record Resource(String href,String mediaType,byte[] bytes) { }
-    public record Result(byte[] reader,String title,List<Spine> spine,List<Toc> toc,List<Resource> resources,String coverHref) { }
+    public record Result(byte[] reader,String title,List<Spine> spine,List<Toc> toc,List<Resource> resources,String coverHref,String tocSource) { }
     private record Item(String id,String path,String output,String media,String properties) { }
     private record Target(String path,String fragment) { }
     private static Invalid invalid() {return new Invalid("EPUB_INVALID");}
@@ -75,7 +75,7 @@ public final class EpubExtractor {
     }
     private static Target resolve(String base,String href) throws Invalid {
         try {
-            if(href==null||href.isEmpty()||href.contains("\\")||href.codePoints().anyMatch(Character::isISOControl)||href.startsWith("/")||href.matches("(?i)^[a-z][a-z0-9+.-]*:.*"))throw invalid();
+            if(href==null||href.isEmpty()||href.length()>12000||href.contains("\\")||href.codePoints().anyMatch(Character::isISOControl)||href.startsWith("/")||href.matches("(?i)^[a-z][a-z0-9+.-]*:.*"))throw invalid();
             int hash=href.indexOf('#');String path=hash<0?href:href.substring(0,hash),fragment=hash<0?null:URLDecoder.decode(href.substring(hash+1).replace("+","%2B"),StandardCharsets.UTF_8);
             if(path.contains("?")||path.contains("%25")||fragment!=null&&(fragment.length()>1000||fragment.codePoints().anyMatch(Character::isISOControl)))throw invalid();
             path=URLDecoder.decode(path.replace("+","%2B"),StandardCharsets.UTF_8);
@@ -142,8 +142,11 @@ public final class EpubExtractor {
     }
     private static String css(String input) {
         if(input.length()>MAX_ENTRY||input.contains("\\")||input.contains("/*")||input.contains("@"))return "";
-        var output=new StringBuilder();Matcher rules=Pattern.compile("([^{}]+)\\{([^{}]*)}").matcher(input);int count=0;
-        while(rules.find()&&++count<2000) {String selector=rules.group(1).strip();if(selector.length()<1024&&selector.matches("[a-zA-Z0-9_ .,#>*:+-]+"))output.append(selector).append('{').append(declarations(rules.group(2))).append('}');}
+        var output=new StringBuilder();int cursor=0,count=0;
+        while(cursor<input.length()&&++count<2000) {
+            int open=input.indexOf('{',cursor);if(open<0)break;int close=input.indexOf('}',open+1);if(close<0)break;int nested=input.indexOf('{',open+1);if(nested>=0&&nested<close)return "";
+            String selector=input.substring(cursor,open).strip();if(selector.length()<1024&&selector.matches("[a-zA-Z0-9_ .,#>*:+-]+"))output.append(selector).append('{').append(declarations(input.substring(open+1,close))).append('}');cursor=close+1;
+        }
         return output.toString();
     }
     private static String css(String input,String base,Map<String,Item> byPath) {
@@ -225,7 +228,7 @@ public final class EpubExtractor {
             var item=items.get(ref.getAttribute("idref"));if(item==null||!item.media().equals("application/xhtml+xml")||sourceIndexes.put(item.path(),spine.size())!=null)throw invalid();
             spine.add(new Spine(item.output(),titles.get(item.path()),!ref.getAttribute("linear").equals("no"),texts.get(item.path())));
         }
-        if(spine.isEmpty())throw invalid();var toc=new ArrayList<Toc>();
+        if(spine.isEmpty())throw invalid();var toc=new ArrayList<Toc>();String tocSource=nav!=null?"NAV":ncx!=null?"NCX":"FALLBACK";
         if(nav!=null) {
             var navDoc=xml(required(files,nav));Element tocNav=null;
             for(var candidate:all(navDoc.getDocumentElement(),"nav"))if(Arrays.asList(candidate.getAttributeNS("http://www.idpf.org/2007/ops","type").split("\\s+")).contains("toc")) {tocNav=candidate;break;}
@@ -233,16 +236,18 @@ public final class EpubExtractor {
         } else if(ncx!=null) {
             var maps=all(xml(required(files,ncx)).getDocumentElement(),"navMap");if(maps.size()!=1)throw invalid();navigation(maps.getFirst(),ncx,-1,true,toc,sourceIndexes,ids,0);
         }
-        if(toc.isEmpty())for(int i=0;i<spine.size();i++)toc.add(new Toc(-1,i,spine.get(i).title(),i,null,true));
+        if(toc.isEmpty()) {tocSource="FALLBACK";for(int i=0;i<spine.size();i++)toc.add(new Toc(-1,i,spine.get(i).title(),i,null,false));}
         String title=cleanLabel(firstText(pkg,"title","Untitled"));
         var output=new LinkedHashMap<String,byte[]>();output.put("mimetype",utf("application/epub+zip"));output.put("META-INF/container.xml",utf("<?xml version=\"1.0\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"EPUB/package.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>"));
         var manifest=new StringBuilder("<item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>");var reading=new StringBuilder();
         for(int i=0;i<resources.size();i++) {var resource=resources.get(i);output.put(resource.href(),resource.bytes());manifest.append("<item id=\"r").append(i).append("\" href=\"").append(resource.href().substring(5)).append("\" media-type=\"").append(resource.mediaType()).append("\"").append(resource.href().equals(cover)?" properties=\"cover-image\"":"").append("/>");}
         for(var item:spine) {int i=0;while(!resources.get(i).href().equals(item.href()))i++;reading.append("<itemref idref=\"r").append(i).append("\" linear=\"").append(item.linear()?"yes":"no").append("\"/>");}
         String identity=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(source));
-        output.put("EPUB/package.opf",utf("<?xml version=\"1.0\"?><package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"uid\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:identifier id=\"uid\">urn:sha256:"+identity+"</dc:identifier><dc:title>"+escape(title)+"</dc:title><dc:language>vi</dc:language><meta property=\"dcterms:modified\">2000-01-01T00:00:00Z</meta></metadata><manifest>"+manifest+"</manifest><spine>"+reading+"</spine></package>"));
+        String language=firstText(pkg,"language","und");if(language.length()>35||!language.matches("[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*"))language="und";
+        var metadata=new StringBuilder();for(String field:List.of("creator","rights","publisher")) {int retained=0;for(var value:all(pkg,field)) {if(++retained>8)break;String plain=value.getTextContent().strip();if(!plain.isEmpty())metadata.append("<dc:").append(field).append('>').append(escape(plain.substring(0,Math.min(4000,plain.length())))).append("</dc:").append(field).append('>');}}
+        output.put("EPUB/package.opf",utf("<?xml version=\"1.0\"?><package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"uid\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:identifier id=\"uid\">urn:sha256:"+identity+"</dc:identifier><dc:title>"+escape(title)+"</dc:title><dc:language>"+escape(language)+"</dc:language>"+metadata+"<meta property=\"dcterms:modified\">2000-01-01T00:00:00Z</meta></metadata><manifest>"+manifest+"</manifest><spine>"+reading+"</spine></package>"));
         output.put("EPUB/nav.xhtml",utf("<?xml version=\"1.0\"?><html xmlns=\""+XHTML+"\" xmlns:epub=\"http://www.idpf.org/2007/ops\"><head><title>Contents</title></head><body><nav epub:type=\"toc\">"+navHtml(toc,spine,-1)+"</nav></body></html>"));
-        byte[] reader=zip(output);return new Result(reader,title,List.copyOf(spine),List.copyOf(toc),List.copyOf(resources),cover);
+        byte[] reader=zip(output);return new Result(reader,title,List.copyOf(spine),List.copyOf(toc),List.copyOf(resources),cover,tocSource);
     }
     private static void navigation(Element list,String base,int parent,boolean ncx,List<Toc> toc,Map<String,Integer> indexes,Map<String,Set<String>> ids,int depth) throws Invalid {
         if(depth>32||toc.size()>10000)throw new Invalid("EPUB_LIMIT_EXCEEDED");

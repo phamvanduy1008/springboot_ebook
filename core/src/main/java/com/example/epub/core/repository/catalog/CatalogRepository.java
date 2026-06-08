@@ -15,7 +15,7 @@ public class CatalogRepository {
     protected CatalogBook book(ResultSet row,int index) throws SQLException {
         return new CatalogBook(row.getObject("id",UUID.class),row.getString("title"),row.getString("author_display"),row.getString("slug"),row.getString("summary"),row.getString("description"),
             row.getString("language"),row.getBoolean("is_translation"),row.getObject("publication_year",Integer.class),row.getString("serial_status"),row.getString("status"),row.getString("visibility"),row.getLong("revision"),
-            row.getTimestamp("created_at").toInstant(),row.getTimestamp("updated_at").toInstant(),row.getObject("published_version_id",UUID.class),row.getString("cover_key"),row.getInt("version_no"),row.getString("version_state"));
+            row.getTimestamp("created_at").toInstant(),row.getTimestamp("updated_at").toInstant(),row.getObject("published_version_id",UUID.class),row.getObject("current_version_id",UUID.class),row.getString("cover_key"),row.getInt("version_no"),row.getString("version_state"));
     }
     private String where(CatalogQuery query,boolean admin,List<Object> args) {
         String where=admin?"b.visibility='PUBLIC' AND b.status<>'DELETED'":PUBLIC;
