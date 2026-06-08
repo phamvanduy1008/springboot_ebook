@@ -31,6 +31,7 @@ public class SecurityConfiguration {
             org.springframework.beans.factory.ObjectProvider<GoogleLogin> google) throws Exception {
         http.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
+                .headers(headers -> headers.frameOptions(options -> options.sameOrigin()))
                 .securityContext(context -> context.securityContextRepository(new HttpSessionSecurityContextRepository()))
                 .exceptionHandling(errors -> errors
                     .authenticationEntryPoint((request,response,error) -> problems.write(request,response,401,"AUTHENTICATION_REQUIRED"))
@@ -50,6 +51,7 @@ public class SecurityConfiguration {
             http.addFilterAfter(new CurrentAccountFilter(accounts.getObject()),org.springframework.security.web.context.SecurityContextHolderFilter.class);
             http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.POST,"/api/v1/books/*/views").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.HEAD,"/api/v1/books/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET,"/api/v1/books/**","/api/v1/categories/**","/api/v1/home","/api/v1/rankings/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/api/v1/health",
                     "/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/capabilities",

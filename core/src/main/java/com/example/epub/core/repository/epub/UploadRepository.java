@@ -14,7 +14,8 @@ public class UploadRepository {
         return jdbc.query("SELECT * FROM epub_upload_receipts WHERE user_id=? AND mutation_key=?",(r,n)->new Receipt(r.getString("fingerprint"),new Accepted(r.getObject("book_id",UUID.class),r.getObject("version_id",UUID.class),r.getObject("job_id",UUID.class),r.getLong("book_revision"),"PROCESSING")),user,key).stream().findFirst();
     }
     public UUID privateBook(UUID user,String title,String author) {
-        UUID book=UUID.randomUUID();jdbc.update("INSERT INTO books(id,owner_id,created_by,visibility,title,author_display,slug) VALUES (?,?,?,'PRIVATE',?,?,'private-import')",book,user,user,title,author);return book;
+        UUID book=UUID.randomUUID();jdbc.update("INSERT INTO books(id,owner_id,created_by,visibility,title,author_display,slug) VALUES (?,?,?,'PRIVATE',?,?,'private-import')",book,user,user,title,author);
+        jdbc.update("INSERT INTO personal_book_state(user_id,book_id,shelf,saved_at,revision) VALUES (?,?,'want',clock_timestamp(),1)",user,book);return book;
     }
     public boolean reserve(UUID user,UUID key,UUID version,long bytes,long limit) {
         jdbc.update("INSERT INTO quota_buckets(user_id,kind,window_start,window_end,limit_units) VALUES (?,'STORAGE_BYTES',TIMESTAMPTZ '2000-01-01Z',TIMESTAMPTZ '2100-01-01Z',?) ON CONFLICT(user_id,kind,window_start) DO NOTHING",user,limit);

@@ -81,4 +81,16 @@ public class EpubExtractorTest {
             assertThrows(EpubExtractor.Invalid.class,()->new EpubExtractor().extract(bytes.toByteArray()));
         }
     }
+    @Test void longCssWithoutRulesCannotCauseRegexBacktracking() {
+        var files=fixture(true);byte[] css=new byte[1024*1024];var random=new Random(7);for(int i=0;i<css.length;i++)css[i]=(byte)('a'+random.nextInt(26));files.put("OEBPS/style.css",css);
+        assertTimeoutPreemptively(java.time.Duration.ofSeconds(5),()->assertEquals(2,new EpubExtractor().extract(zip(files)).spine().size()));
+    }
+    @Test void navigationFallbackDoesNotInventAuthoredChapters() throws Exception {
+        var files=fixture(false);put(files,"OEBPS/book.opf",new String(files.get("OEBPS/book.opf"),StandardCharsets.UTF_8).replace("application/x-dtbncx+xml","application/octet-stream"));
+        var result=new EpubExtractor().extract(zip(files));assertEquals("FALLBACK",result.tocSource());assertEquals(2,result.toc().size());assertTrue(result.toc().stream().noneMatch(EpubExtractor.Toc::chapter));
+    }
+    @Test void sanitizedPackagePreservesAttributionAndLanguageAsText() throws Exception {
+        var files=fixture(true);put(files,"OEBPS/book.opf",new String(files.get("OEBPS/book.opf"),StandardCharsets.UTF_8).replace("</metadata>","<dc:language>en-US</dc:language><dc:creator>Fixture author</dc:creator><dc:rights>CC0</dc:rights></metadata>"));
+        var result=new EpubExtractor().extract(zip(files));try(var input=new java.util.zip.ZipInputStream(new ByteArrayInputStream(result.reader()))) {java.util.zip.ZipEntry entry;boolean found=false;while((entry=input.getNextEntry())!=null)if(entry.getName().equals("EPUB/package.opf")) {var factory=javax.xml.parsers.DocumentBuilderFactory.newInstance();factory.setNamespaceAware(true);var doc=factory.newDocumentBuilder().parse(new ByteArrayInputStream(input.readAllBytes()));assertEquals("en-US",doc.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/","language").item(0).getTextContent());assertEquals("Fixture author",doc.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/","creator").item(0).getTextContent());assertEquals("CC0",doc.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/","rights").item(0).getTextContent());found=true;}assertTrue(found);}
+    }
 }

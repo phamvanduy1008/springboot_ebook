@@ -9,7 +9,7 @@ public class WorkerApplication {
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(WorkerApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
-        // Keep the headless process alive without fake jobs or a polling loop.
+        // Keep the headless process alive while the registered runner polls PostgreSQL.
         application.setKeepAlive(true);
         application.run(args);
     }

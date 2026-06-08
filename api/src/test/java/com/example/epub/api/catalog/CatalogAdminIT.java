@@ -68,7 +68,7 @@ class CatalogAdminIT {
                 var readyClone=a.call("POST","/api/v1/admin/books/"+book+"/clone",Map.of("revision",revision),true);assertEquals(201,readyClone.statusCode(),readyClone.body());
                 UUID readyCloneId=UUID.fromString(JSON.readTree(readyClone.body()).get("id").asText());fixture.books.add(readyCloneId);assertEquals("UPLOADING",JSON.readTree(readyClone.body()).get("versionState").asText());
                 assertEquals(0,fixture.jdbc.queryForObject("SELECT count(*) FROM stored_objects WHERE book_id=?",Integer.class,readyCloneId));
-                assertEquals(404,a.call("POST","/api/v1/admin/books/"+book+"/publish",Map.of("revision",0),true).statusCode());
+                assertEquals(400,a.call("POST","/api/v1/admin/books/"+book+"/publish",Map.of("revision",0),true).statusCode()); // publishing now exists and requires a version/key
                 revision=JSON.readTree(a.call("GET","/api/v1/admin/books/"+book,null,false).body()).get("revision").asLong();assertEquals(204,a.call("DELETE","/api/v1/admin/books/"+book,Map.of("revision",revision),true).statusCode());
                 assertEquals(404,a.call("GET","/api/v1/admin/books/"+book,null,false).statusCode());
                 fixture.jdbc.update("UPDATE users SET role='USER' WHERE id=?",admin);assertEquals(403,a.call("GET","/api/v1/admin/books",null,false).statusCode());

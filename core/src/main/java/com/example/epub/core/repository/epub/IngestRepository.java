@@ -10,7 +10,7 @@ public class IngestRepository {
         return jdbc.query("""
             SELECT o.* FROM book_versions v JOIN books b ON b.id=v.book_id
             JOIN stored_objects o ON o.id=v.source_object_id AND o.book_version_id=v.id AND o.book_id=v.book_id
-            WHERE v.id=? AND b.id=? AND v.state='PROCESSING' AND b.status<>'DELETED' AND o.kind='SOURCE_EPUB' AND o.state='READY'
+            WHERE v.id=? AND b.id=? AND v.state='PROCESSING' AND b.status<>'DELETED' AND o.kind='SOURCE_EPUB' AND o.state='READY' AND o.backend='LOCAL'
             """,(r,n)->new Source(book,version,new ObjectRow(r.getObject("id",UUID.class),r.getString("object_key"),r.getString("sha256"),r.getLong("size_bytes"),r.getString("media_type"),r.getString("kind"))),version,book).stream().findFirst();
     }
     public boolean lockProcessing(UUID book,UUID version) {
@@ -33,12 +33,12 @@ public class IngestRepository {
         if(jdbc.update("UPDATE quota_buckets SET reserved_units=reserved_units-?,used_units=used_units+?,revision=revision+1 WHERE id=? AND reserved_units>=? AND used_units+reserved_units-?<=limit_units-?",reserved,actualBytes,row.get("bucket_id"),reserved,reserved,actualBytes)!=1)return false;
         jdbc.update("UPDATE quota_reservations SET state='COMMITTED',amount_units=? WHERE id=?",actualBytes,row.get("id"));return true;
     }
-    public void ready(UUID book,UUID version,UUID reader,UUID cover,String extractor,String sanitizer,int chapterCount) {
-        jdbc.update("UPDATE book_versions SET state='READY',reader_object_id=?,cover_object_id=?,extractor_version=?,sanitizer_version=?,ready_at=clock_timestamp(),failure_code=NULL,chapter_count=? WHERE id=? AND state='PROCESSING'",reader,cover,extractor,sanitizer,chapterCount,version);
+    public void ready(UUID book,UUID version,UUID reader,UUID cover,String extractor,String sanitizer,Integer chapterCount,String tocSource) {
+        jdbc.update("UPDATE book_versions SET state='READY',reader_object_id=?,cover_object_id=?,extractor_version=?,sanitizer_version=?,ready_at=clock_timestamp(),failure_code=NULL,chapter_count=?,toc_source=? WHERE id=? AND state='PROCESSING'",reader,cover,extractor,sanitizer,chapterCount,tocSource,version);
         jdbc.update("""
-            UPDATE books b SET current_version_id=?,revision=revision+1,updated_at=clock_timestamp() WHERE b.id=?
+            UPDATE books b SET current_version_id=?,cover_key=CASE WHEN visibility='PRIVATE' THEN (SELECT o.object_key FROM book_versions v LEFT JOIN stored_objects o ON o.id=v.cover_object_id WHERE v.id=?) ELSE b.cover_key END,revision=revision+1,updated_at=clock_timestamp() WHERE b.id=?
               AND (b.current_version_id IS NULL OR (SELECT version_no FROM book_versions WHERE id=b.current_version_id)<(SELECT version_no FROM book_versions WHERE id=?))
-            """,version,book,version);
+            """,version,version,book,version);
     }
     public List<UUID> terminalVersions() {
         return jdbc.queryForList("SELECT v.id FROM book_versions v JOIN jobs j ON j.book_version_id=v.id AND j.type='INGEST' WHERE v.state='PROCESSING' AND j.status IN ('FAILED','CANCELLED') ORDER BY v.created_at LIMIT 100",UUID.class);
