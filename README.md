@@ -1,5 +1,34 @@
 # springboot_ebook
 
+## Read a local EPUB folder
+
+After building API/worker and starting the local-profile API, run the trusted host operator tool:
+
+```powershell
+python tools/Read-LocalEpubFolder.py --root D:\TeraBoxDownload --create-operator --publish-ready
+```
+
+The scanner maps real EPUB metadata to existing book IDs and selects one source variant per book.
+It starts a hidden local worker, processes one source at a time, waits for READY and explicitly
+publishes successful imports when `--publish-ready` is supplied. Without that flag books remain drafts.
+Restarting the command skips identical accepted source hashes. Hidden/deleted/private books are excluded.
+The command prints the PID and log/manifest paths; stop that PID to pause and rerun the command to resume.
+Sequential mode pauses new imports if the storage volume has less than 2 GiB free.
+The worker stays alive after the batch to serve queued jobs. Originals remain unchanged.
+`--limit 3` runs a small first batch; default maximum is 2000 mapped books. Database access is loopback only.
+`--actor <existing-admin-UUID>` can replace `--create-operator`. The latter creates a reserved local
+operator identity with an invalid email (`local-folder@`) and unusable password; it has no browser
+login/reset/OIDC flow. This identity authorizes and audits host-side imports, never private user access.
+Local storage needs room for source copies, sanitized EPUBs, XHTML/resources and raw text.
+No cloud upload or redistribution is performed by this command.
+
+`GET /api/v1/books/{book}/versions/{version}/chapters/{tocId}` returns one sanitized XHTML section,
+its title and authorized resource base URL. It slices the stored reader document at TOC anchors,
+including multiple chapters in one XHTML, without reopening/reparsing the source EPUB archive.
+Publication/private-owner checks run for every request; results use `private, no-store`.
+Frontend renderers must isolate this HTML in a script-disabled sandbox and resolve resources only
+against the returned same-origin API directory. Unsupported/no-TOC sources expose their spine order.
+
 ## Catalog schema
 
 Catalog metadata uses UUID identities, distinct visibility/publication/serial states and revision counters.

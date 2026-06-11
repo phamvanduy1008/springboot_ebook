@@ -10,7 +10,7 @@ public class CatalogRepository {
     protected final JdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate named;
     public CatalogRepository(JdbcTemplate jdbc) {this.jdbc=jdbc;this.named=new NamedParameterJdbcTemplate(jdbc);}
-    public static final String PUBLIC="b.visibility='PUBLIC' AND b.status='PUBLISHED' AND EXISTS(SELECT 1 FROM book_versions pv WHERE pv.id=b.published_version_id AND pv.book_id=b.id AND pv.state='READY')";
+    public static final String PUBLIC="(b.visibility='PUBLIC' AND b.deleted_at IS NULL AND ((b.status='DRAFT' AND b.catalog_listed) OR (b.status='PUBLISHED' AND EXISTS(SELECT 1 FROM book_versions pv WHERE pv.id=b.published_version_id AND pv.book_id=b.id AND pv.state='READY'))))";
     private static final String COLUMNS="b.*,coalesce((SELECT max(v.version_no) FROM book_versions v WHERE v.book_id=b.id),0) AS version_no,(SELECT v.state FROM book_versions v WHERE v.book_id=b.id ORDER BY v.version_no DESC LIMIT 1) AS version_state";
     protected CatalogBook book(ResultSet row,int index) throws SQLException {
         return new CatalogBook(row.getObject("id",UUID.class),row.getString("title"),row.getString("author_display"),row.getString("slug"),row.getString("summary"),row.getString("description"),

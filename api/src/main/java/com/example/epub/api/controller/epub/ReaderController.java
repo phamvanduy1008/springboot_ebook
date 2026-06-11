@@ -37,6 +37,10 @@ public class ReaderController {
         if(request.getMethod().equals("HEAD"))return ResponseEntity.ok().headers(headers).build();
         return ResponseEntity.ok().headers(headers).body(output->{try(var input=reader.open(file)) {input.transferTo(output);}});
     }
+    @GetMapping("/api/v1/books/{book}/versions/{version}/chapters/{chapter}")
+    public ResponseEntity<Chapter> chapter(@PathVariable UUID book,@PathVariable UUID version,@PathVariable UUID chapter) {
+        var result=reader.chapter(actor(),book,version,chapter);var headers=new HttpHeaders();headers.setCacheControl("private, no-store");headers.setVary(List.of("Cookie"));headers.set("X-Content-Type-Options","nosniff");return ResponseEntity.ok().headers(headers).body(result);
+    }
     @GetMapping("/api/v1/books/{book}/versions/{version}/reader.epub") public ResponseEntity<StreamingResponseBody> epub(@PathVariable UUID book,@PathVariable UUID version,HttpServletRequest request) {return deliver(book,version,null,false,request);}
     @GetMapping({"/api/v1/books/{book}/cover","/api/v1/books/{book}/versions/{version}/cover"}) public ResponseEntity<StreamingResponseBody> cover(@PathVariable UUID book,@PathVariable(required=false) UUID version,HttpServletRequest request) {return deliver(book,version,null,true,request);}
     @GetMapping("/api/v1/books/{book}/versions/{version}/resources/{name}") public ResponseEntity<StreamingResponseBody> resource(@PathVariable UUID book,@PathVariable UUID version,@PathVariable String name,HttpServletRequest request) {return deliver(book,version,name,false,request);}

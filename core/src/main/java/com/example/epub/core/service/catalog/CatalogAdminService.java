@@ -65,7 +65,7 @@ public class CatalogAdminService {
         return mutate(actor,() -> {lock(id,revision);var version=changes.newVersion(id,CatalogValidation.text(rights,"rightsNote",4000,false));changes.touchBook(id,revision);audit("BOOK_VERSION_CREATED",actor,"BOOK",id,requestId);return version;});
     }
     public BookView hide(UUID actor,UUID id,long revision,String requestId) {
-        return mutate(actor,() -> {var book=lock(id,revision);if(!"PUBLISHED".equals(book.status()))throw new CatalogFailure(CatalogFailure.Reason.INVALID_STATE);changes.hide(id,revision);audit("BOOK_HIDDEN",actor,"BOOK",id,requestId);return view(id);});
+        return mutate(actor,() -> {lock(id,revision);if(catalog.find(id,false).isEmpty())throw new CatalogFailure(CatalogFailure.Reason.INVALID_STATE);if(!changes.hide(id,revision))throw new CatalogFailure(CatalogFailure.Reason.INVALID_STATE);audit("BOOK_HIDDEN",actor,"BOOK",id,requestId);return view(id);});
     }
     public void delete(UUID actor,UUID id,long revision,String requestId) {
         mutate(actor,() -> {lock(id,revision);changes.deleteBook(id,revision);audit("BOOK_DELETED",actor,"BOOK",id,requestId);return null;});

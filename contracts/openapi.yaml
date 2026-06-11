@@ -2,8 +2,9 @@ openapi: 3.1.0
 info:
   title: EPUB API foundation
   version: 0.1.0
-  description: Authentication, personal library, catalog discovery, local EPUB ingestion/publication and authorized reader delivery. Public reading
-    requires PUBLIC/PUBLISHED and a verified READY published version. Cloud deployment is deferred.
+  description: Authentication, personal library, catalog discovery, local EPUB ingestion/publication
+    and authorized reader delivery. Public reading requires PUBLIC/PUBLISHED and a
+    verified READY published version. Cloud deployment is deferred.
 servers:
 - url: /
 paths:
@@ -11,11 +12,11 @@ paths:
     get:
       operationId: getBookManifest
       summary: Read an authorized immutable manifest, ordered spine and nested TOC
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -81,11 +82,11 @@ paths:
     get:
       operationId: getVersionManifest
       summary: Read an authorized immutable manifest, ordered spine and nested TOC
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -157,11 +158,11 @@ paths:
     get:
       operationId: getReaderEpub
       summary: Download the sanitized reader EPUB
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -299,11 +300,11 @@ paths:
     get:
       operationId: getBookCover
       summary: Read the authorized cover
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -429,11 +430,11 @@ paths:
     get:
       operationId: getVersionCover
       summary: Read the authorized cover
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -571,11 +572,11 @@ paths:
     get:
       operationId: getReaderResource
       summary: Read a sanitized chapter, image, CSS or font
-      description: Public requests require the currently published READY version. Private
-        access requires the active owner session, including for administrators. Hidden/deleted
-        books are checked before conditional responses. No source/raw-text storage route
-        exists. HTTP Range is not supported; a Range request receives the full 200 response
-        after authorization. No EPUB is reparsed during delivery.
+      description: Public requests require the currently published READY version.
+        Private access requires the active owner session, including for administrators.
+        Hidden/deleted books are checked before conditional responses. No source/raw-text
+        storage route exists. HTTP Range is not supported; a Range request receives
+        the full 200 response after authorization. No EPUB is reparsed during delivery.
       parameters:
       - name: book
         in: path
@@ -799,7 +800,8 @@ paths:
         '404':
           description: Missing/private/deleted book
         '409':
-          description: Revision/idempotency conflict or version not READY in this book
+          description: Revision/idempotency conflict or version not READY in this
+            book
         '503':
           description: Artifact files missing or integrity mismatch
         default:
@@ -874,7 +876,8 @@ paths:
         '404':
           description: Missing/private/deleted book
         '409':
-          description: Revision/idempotency conflict or version not READY in this book
+          description: Revision/idempotency conflict or version not READY in this
+            book
         '503':
           description: Artifact files missing or integrity mismatch
         default:
@@ -884,10 +887,11 @@ paths:
       operationId: uploadPublicEpub
       summary: Stage an EPUB for an existing public book (administrator)
       description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
-        or client storage keys. Session and CSRF required. Private upload requires verified
-        email and ownership. Returns immediately after staging/transactional quota reservation,
-        without parsing the book. Retry the identical request/key for the original 202
-        result; changed content or parameters conflict. Upload never publishes a book.
+        or client storage keys. Session and CSRF required. Private upload requires
+        verified email and ownership. Returns immediately after staging/transactional
+        quota reservation, without parsing the book. Retry the identical request/key
+        for the original 202 result; changed content or parameters conflict. Upload
+        never publishes a book.
       security:
       - SessionCookie: []
       parameters:
@@ -960,10 +964,11 @@ paths:
       operationId: uploadPrivateEpub
       summary: Stage a new version of an owned private book
       description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
-        or client storage keys. Session and CSRF required. Private upload requires verified
-        email and ownership. Returns immediately after staging/transactional quota reservation,
-        without parsing the book. Retry the identical request/key for the original 202
-        result; changed content or parameters conflict. Upload never publishes a book.
+        or client storage keys. Session and CSRF required. Private upload requires
+        verified email and ownership. Returns immediately after staging/transactional
+        quota reservation, without parsing the book. Retry the identical request/key
+        for the original 202 result; changed content or parameters conflict. Upload
+        never publishes a book.
       security:
       - SessionCookie: []
       parameters:
@@ -1036,10 +1041,11 @@ paths:
       operationId: importPrivateEpub
       summary: Create an owned private draft and stage its EPUB
       description: Raw EPUB body, maximum 64 MiB including chunked streams; no multipart
-        or client storage keys. Session and CSRF required. Private upload requires verified
-        email and ownership. Returns immediately after staging/transactional quota reservation,
-        without parsing the book. Retry the identical request/key for the original 202
-        result; changed content or parameters conflict. Upload never publishes a book.
+        or client storage keys. Session and CSRF required. Private upload requires
+        verified email and ownership. Returns immediately after staging/transactional
+        quota reservation, without parsing the book. Retry the identical request/key
+        for the original 202 result; changed content or parameters conflict. Upload
+        never publishes a book.
       security:
       - SessionCookie: []
       parameters:
@@ -1105,14 +1111,18 @@ paths:
     get:
       operationId: getJob
       security:
-        - SessionCookie: []
+      - SessionCookie: []
       summary: Read a job owned by the session user or a public administrator job
-      description: Private jobs never receive an administrator override. Payloads, storage keys and lease tokens are not returned. Responses use Cache-Control no-store.
+      description: Private jobs never receive an administrator override. Payloads,
+        storage keys and lease tokens are not returned. Responses use Cache-Control
+        no-store.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema: {type: string, format: uuid}
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Redacted job state
@@ -1120,19 +1130,53 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [id, type, status, attempts, maxAttempts, updatedAt]
+                required:
+                - id
+                - type
+                - status
+                - attempts
+                - maxAttempts
+                - updatedAt
                 properties:
-                  id: {type: string, format: uuid}
-                  bookId: {type: string, format: uuid}
-                  versionId: {type: string, format: uuid}
-                  type: {type: string, enum: [INGEST, TTS, CLEANUP]}
-                  status: {type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]}
-                  attempts: {type: integer, minimum: 0}
-                  maxAttempts: {type: integer, minimum: 1}
-                  errorCode: {type: string, nullable: true}
-                  updatedAt: {type: string, format: date-time}
-        '401': {description: Session required}
-        '404': {description: Missing or inaccessible job}
+                  id:
+                    type: string
+                    format: uuid
+                  bookId:
+                    type: string
+                    format: uuid
+                  versionId:
+                    type: string
+                    format: uuid
+                  type:
+                    type: string
+                    enum:
+                    - INGEST
+                    - TTS
+                    - CLEANUP
+                  status:
+                    type: string
+                    enum:
+                    - QUEUED
+                    - RUNNING
+                    - SUCCEEDED
+                    - FAILED
+                    - CANCELLED
+                  attempts:
+                    type: integer
+                    minimum: 0
+                  maxAttempts:
+                    type: integer
+                    minimum: 1
+                  errorCode:
+                    type: string
+                    nullable: true
+                  updatedAt:
+                    type: string
+                    format: date-time
+        '401':
+          description: Session required
+        '404':
+          description: Missing or inaccessible job
   /api/v1/health:
     get:
       operationId: getHealth
@@ -1167,7 +1211,8 @@ paths:
       - SessionCookie: []
       responses:
         '200':
-          description: Active account profile and login methods without credentials or provider subjects
+          description: Active account profile and login methods without credentials
+            or provider subjects
           content:
             application/json:
               schema:
@@ -1198,7 +1243,8 @@ paths:
                   maxLength: 240
       responses:
         '200':
-          description: Updated profile; email/role/verified/provider fields are read only
+          description: Updated profile; email/role/verified/provider fields are read
+            only
           content:
             application/json:
               schema:
@@ -1235,7 +1281,8 @@ paths:
                   writeOnly: true
       responses:
         '200':
-          description: Password changed, all old sessions revoked and a new current session established; refresh CSRF
+          description: Password changed, all old sessions revoked and a new current
+            session established; refresh CSRF
           content:
             application/json:
               schema:
@@ -1249,8 +1296,8 @@ paths:
       - SessionCookie: []
       responses:
         '200':
-          description: Up to 100 most recently active owned sessions; IDs are revocation identifiers, never cookie/session
-            secrets
+          description: Up to 100 most recently active owned sessions; IDs are revocation
+            identifiers, never cookie/session secrets
           content:
             application/json:
               schema:
@@ -1275,7 +1322,8 @@ paths:
           format: uuid
       responses:
         '204':
-          description: Owned session revoked; revoking the current session also clears its cookie
+          description: Owned session revoked; revoking the current session also clears
+            its cookie
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/account/google/link:
@@ -1301,8 +1349,8 @@ paths:
                   writeOnly: true
       responses:
         '200':
-          description: Recent password reauthentication accepted; navigate to the returned relative URL to link Google to
-            this user
+          description: Recent password reauthentication accepted; navigate to the
+            returned relative URL to link Google to this user
           content:
             application/json:
               schema:
@@ -1357,7 +1405,8 @@ paths:
                   writeOnly: true
       responses:
         '204':
-          description: Password replaced; all application sessions for the account revoked
+          description: Password replaced; all application sessions for the account
+            revoked
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/auth/register:
@@ -1458,7 +1507,8 @@ paths:
         description: Internal path only; unsafe values fall back to the site root
       responses:
         '302':
-          description: Redirect to Google with session-bound state, nonce and PKCE challenge
+          description: Redirect to Google with session-bound state, nonce and PKCE
+            challenge
           headers:
             Location:
               schema:
@@ -1487,8 +1537,8 @@ paths:
           type: string
       responses:
         '302':
-          description: Redirect to configured frontend after validated login, or login page with allowlisted generic failure
-            code
+          description: Redirect to configured frontend after validated login, or login
+            page with allowlisted generic failure code
           headers:
             Location:
               schema:
@@ -1544,7 +1594,8 @@ paths:
                   writeOnly: true
       responses:
         '200':
-          description: Logged in; HttpOnly SameSite=Lax session cookie, Secure in production
+          description: Logged in; HttpOnly SameSite=Lax session cookie, Secure in
+            production
           content:
             application/json:
               schema:
@@ -1572,7 +1623,8 @@ paths:
       - $ref: '#/components/parameters/Csrf'
       responses:
         '204':
-          description: Session invalidated and cookie expired; refresh CSRF before next login
+          description: Session invalidated and cookie expired; refresh CSRF before
+            next login
         default:
           $ref: '#/components/responses/Problem'
   /api/v1/admin/books:
@@ -1694,7 +1746,8 @@ paths:
       - SessionCookie: []
       responses:
         '200':
-          description: Updated metadata; revision is required, unknown fields are rejected
+          description: Updated metadata; revision is required, unknown fields are
+            rejected
           content:
             application/json:
               schema:
@@ -2393,8 +2446,8 @@ paths:
       security: []
       responses:
         '200':
-          description: Server timestamp, one fingerprint/book/day UTC, throttled. No client metric fields. CSRF required for
-            guests too.
+          description: Server timestamp, one fingerprint/book/day UTC, throttled.
+            No client metric fields. CSRF required for guests too.
           content:
             application/json:
               schema:
@@ -2421,8 +2474,8 @@ paths:
       security: []
       responses:
         '200':
-          description: Public READY metadata, editorial and monthly UTC metrics; chapter count is null until ingestion supplies
-            it. No chapter text.
+          description: Public READY metadata, editorial and monthly UTC metrics; chapter
+            count is null until ingestion supplies it. No chapter text.
           content:
             application/json:
               schema:
@@ -2491,7 +2544,8 @@ paths:
       - SessionCookie: []
       responses:
         '200':
-          description: Book revision guards atomic ordered replacement; existing IDs must belong to this book
+          description: Book revision guards atomic ordered replacement; existing IDs
+            must belong to this book
           content:
             application/json:
               schema:
@@ -2624,9 +2678,9 @@ paths:
             schema:
               $ref: '#/components/schemas/PersonalShelfInput'
       description: Requires the shared book-state revision and a UUID Idempotency-Key.
-        Identical retries replay the original response for 24 hours; reusing a key for
-        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
-        Saving or liking never grants reader access.
+        Identical retries replay the original response for 24 hours; reusing a key
+        for a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return
+        REVISION_CONFLICT. Saving or liking never grants reader access.
     delete:
       operationId: deletePersonalLibraryBook
       tags:
@@ -2757,9 +2811,9 @@ paths:
             schema:
               $ref: '#/components/schemas/PersonalRevisionInput'
       description: Requires the shared book-state revision and a UUID Idempotency-Key.
-        Identical retries replay the original response for 24 hours; reusing a key for
-        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
-        Saving or liking never grants reader access.
+        Identical retries replay the original response for 24 hours; reusing a key
+        for a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return
+        REVISION_CONFLICT. Saving or liking never grants reader access.
     delete:
       operationId: deletePersonalFavoritesBook
       tags:
@@ -2890,9 +2944,9 @@ paths:
             schema:
               $ref: '#/components/schemas/PersonalRevisionInput'
       description: Requires the shared book-state revision and a UUID Idempotency-Key.
-        Identical retries replay the original response for 24 hours; reusing a key for
-        a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return REVISION_CONFLICT.
-        Saving or liking never grants reader access.
+        Identical retries replay the original response for 24 hours; reusing a key
+        for a different request returns IDEMPOTENCY_CONFLICT. Stale revisions return
+        REVISION_CONFLICT. Saving or liking never grants reader access.
     delete:
       operationId: deletePersonalViewHistoryBook
       tags:
@@ -2974,6 +3028,44 @@ paths:
       description: Complete replacement of the appearance allowlist only. User identity,
         roles, raw paths and unknown fields are rejected. Uses settings revision and
         the same 24-hour idempotency policy.
+  /api/v1/books/{book}/versions/{version}/chapters/{chapter}:
+    get:
+      operationId: getReaderChapter
+      summary: Read one sanitized TOC section without opening the source archive
+      description: Same publication and private-owner authorization as the manifest.
+        Sections end at the next distinct fragment in the same spine resource. No-store
+        JSON; display HTML in a sandboxed frame and resolve local resources against
+        baseUrl.
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: chapter
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized chapter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderChapter'
+        '404':
+          description: Book/version/chapter not available
+        '503':
+          description: Immutable reader artifact unavailable or damaged
 components:
   securitySchemes:
     SessionCookie:
@@ -2992,7 +3084,8 @@ components:
       name: X-Request-ID
       in: header
       required: false
-      description: Safe ASCII ID up to 64 characters; invalid values are replaced by a UUID.
+      description: Safe ASCII ID up to 64 characters; invalid values are replaced
+        by a UUID.
       schema:
         type: string
     Page:
@@ -3013,8 +3106,8 @@ components:
     Sort:
       name: sort
       in: query
-      description: field,asc or field,desc. Endpoint-specific allowlist; id,asc is appended as tie-breaker. Reserved for future
-        list endpoints.
+      description: field,asc or field,desc. Endpoint-specific allowlist; id,asc is
+        appended as tie-breaker. Reserved for future list endpoints.
       schema:
         type: string
         default: id,asc
@@ -3037,7 +3130,8 @@ components:
               message:
                 type: string
     Problem:
-      description: Consistent error response without stack traces or rejected input values
+      description: Consistent error response without stack traces or rejected input
+        values
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestId'
@@ -3101,8 +3195,8 @@ components:
         rawUtf16Length:
           type: integer
           minimum: 0
-          description: Canonical raw text length in UTF-16 code units, independent of
-            TTS normalization.
+          description: Canonical raw text length in UTF-16 code units, independent
+            of TTS normalization.
     ReaderToc:
       type: object
       required:
@@ -3149,7 +3243,11 @@ components:
       properties:
         tocSource:
           type: string
-          enum: [NAV, NCX, FALLBACK, LEGACY]
+          enum:
+          - NAV
+          - NCX
+          - FALLBACK
+          - LEGACY
           description: FALLBACK links are sections; authored chapter count is unknown.
         bookId:
           type: string
@@ -3171,8 +3269,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReaderToc'
-          description: Preorder flat tree with parentId; multiple entries can target one
-            spine item using different fragment IDs.
+          description: Preorder flat tree with parentId; multiple entries can target
+            one spine item using different fragment IDs.
         resources:
           type: array
           items:
@@ -3354,7 +3452,8 @@ components:
           additionalProperties:
             type: string
     Page:
-      description: Reusable envelope for future list endpoints; items are mapped DTOs, never entities.
+      description: Reusable envelope for future list endpoints; items are mapped DTOs,
+        never entities.
       type: object
       additionalProperties: false
       required:
@@ -3855,7 +3954,9 @@ components:
           maxLength: 2000
         readerAvailable:
           type: boolean
-          description: True for a published READY public version or an accessible owned private book with a current READY version. Metadata-only drafts remain false.
+          description: True for a published READY public version or an accessible
+            owned private book with a current READY version. Metadata-only drafts
+            remain false.
     PublicCatalogPage:
       type: object
       additionalProperties: false
@@ -4276,7 +4377,6 @@ components:
           maxItems: 30
           items:
             $ref: '#/components/schemas/CatalogCharacterInput'
-
     PersonalRevisionInput:
       type: object
       additionalProperties: false
@@ -4479,3 +4579,22 @@ components:
           type: integer
           format: int64
           minimum: 0
+    ReaderChapter:
+      type: object
+      required:
+      - id
+      - title
+      - html
+      - baseUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        html:
+          type: string
+          description: Sanitized XHTML section; never source EPUB HTML
+        baseUrl:
+          type: string
+          description: Same-origin authorized resource directory; no filesystem path

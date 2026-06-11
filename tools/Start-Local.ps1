@@ -29,7 +29,7 @@ if($AdoptLegacySchema) {
  $adoption=' --spring.flyway.baseline-on-migrate=true --spring.flyway.baseline-version=7'
  Write-Output ('Backup: '+$backup)
 }
-$arguments='-jar "'+$jar+'" --server.port='+$Port+' --app.database-url=jdbc:postgresql://127.0.0.1:'+$DatabasePort+'/'+$Database+'?currentSchema=public --app.database-username='+$DatabaseUser+' --spring.profiles.active=local --app.local-seed.enabled=false --debug=false'+$adoption
+$arguments='-jar "'+$jar+'" --server.address=127.0.0.1 --server.port='+$Port+' --app.database-url=jdbc:postgresql://127.0.0.1:'+$DatabasePort+'/'+$Database+'?currentSchema=public --app.database-username='+$DatabaseUser+' --spring.profiles.active=local --app.local-seed.enabled=false --debug=false'+$adoption
 $process=Start-Process -FilePath $java -ArgumentList $arguments -WorkingDirectory $root -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runRoot 'api.log') -RedirectStandardError (Join-Path $runRoot 'api.err')
 try {
  $ready=$false
