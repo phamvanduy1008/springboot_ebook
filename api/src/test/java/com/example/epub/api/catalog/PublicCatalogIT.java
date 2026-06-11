@@ -12,6 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static com.example.epub.api.catalog.CatalogTestSupport.*;
 @EnabledIfEnvironmentVariable(named="EPUB_IDENTITY_DB_TEST",matches="true")
 class PublicCatalogIT {
+ @Test void explicitlyListedMetadataIsDiscoverableWithoutMakingDraftsReadable() throws Exception {
+  try(var context=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0","--app.local-seed.enabled=false","--logging.level.root=WARN","--debug=false");var f=new CatalogTestSupport(context.getBean(JdbcTemplate.class));var b=new Browser(((WebServerApplicationContext)context).getWebServer().getPort())) {
+   UUID listed=f.publicDraft("Local EPUB metadata","Local Author",null),unlisted=f.publicDraft("Unlisted draft","Author",null),owner=f.user("USER"),privateId=f.privateBook(owner);
+   f.jdbc.update("UPDATE books SET catalog_listed=true WHERE id IN (?,?)",listed,privateId);
+   var detail=b.call("GET","/api/v1/books/"+listed,null,false);assertEquals(200,detail.statusCode(),detail.body());assertFalse(JSON.readTree(detail.body()).get("readerAvailable").asBoolean());
+   var overview=b.call("GET","/api/v1/books/"+listed+"/overview",null,false);assertEquals(200,overview.statusCode(),overview.body());assertTrue(JSON.readTree(overview.body()).get("chapterCount").isNull());
+   assertEquals(1,JSON.readTree(b.call("GET","/api/v1/home",null,false).body()).get("bookCount").asLong());
+   for(UUID id:List.of(unlisted,privateId))assertEquals(404,b.call("GET","/api/v1/books/"+id,null,false).statusCode());
+   assertEquals(0,f.jdbc.queryForObject("SELECT count(*) FROM book_versions WHERE book_id=?",Integer.class,listed));
+   f.jdbc.update("UPDATE books SET status='HIDDEN' WHERE id=?",listed);assertEquals(404,b.call("GET","/api/v1/books/"+listed,null,false).statusCode());
+  }
+ }
  @Test void guestDiscoverySearchPaginationAndAllPublicPoliciesUsePublishedReadyVersions() throws Exception {
   try(var context=new SpringApplicationBuilder(ApiApplication.class).run("--spring.profiles.active=local","--server.port=0","--app.local-seed.enabled=false","--logging.level.root=WARN","--debug=false");var f=new CatalogTestSupport(context.getBean(JdbcTemplate.class));var b=new Browser(((WebServerApplicationContext)context).getWebServer().getPort())) {
    var empty=b.call("GET","/api/v1/books",null,false);assertEquals(200,empty.statusCode());assertEquals(0,JSON.readTree(empty.body()).get("total").asLong());

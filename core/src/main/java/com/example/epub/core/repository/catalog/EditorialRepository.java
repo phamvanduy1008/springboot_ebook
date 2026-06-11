@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class EditorialRepository {
  private final JdbcTemplate jdbc;public EditorialRepository(JdbcTemplate jdbc) {this.jdbc=jdbc;}
  public String quote(UUID id) {return jdbc.queryForObject("SELECT quote FROM books WHERE id=?",String.class,id);}
- public Integer chapterCount(UUID id) {return jdbc.queryForObject("SELECT v.chapter_count FROM books b JOIN book_versions v ON v.id=b.published_version_id AND v.book_id=b.id WHERE b.id=? AND "+CatalogRepository.PUBLIC,Integer.class,id);}
+ public Integer chapterCount(UUID id) {return jdbc.queryForObject("SELECT v.chapter_count FROM books b LEFT JOIN book_versions v ON v.id=b.published_version_id AND v.book_id=b.id AND v.state='READY' WHERE b.id=? AND "+CatalogRepository.PUBLIC,Integer.class,id);}
  public List<Character> characters(UUID id) {return jdbc.query("SELECT * FROM book_characters WHERE book_id=? ORDER BY position,id",(rs,n)->new Character(rs.getObject("id",UUID.class),rs.getString("name"),rs.getString("role"),rs.getString("description"),rs.getString("initials"),rs.getString("color"),rs.getInt("position"),rs.getLong("revision")),id);}
  public void quote(UUID id,String quote) {jdbc.update("UPDATE books SET quote=? WHERE id=?",quote,id);}
  public void characters(UUID id,List<Character> values) {

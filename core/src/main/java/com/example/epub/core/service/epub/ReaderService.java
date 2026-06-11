@@ -37,5 +37,17 @@ public class ReaderService {
     public void verify(Delivery file) {
         try {var object=file.object();var actual=storage.stat(object.key());if(actual.size()!=object.size()||!actual.sha256().equals(object.hash()))throw new IOException("Artifact integrity failure");}catch(IOException unavailable) {throw new EpubFailure(STORAGE_UNAVAILABLE);}
     }
+    public Chapter chapter(Actor actor,UUID book,UUID requested,UUID chapterId) {
+        var manifest=manifest(actor,book,requested);
+        var entry=manifest.toc().stream().filter(t->t.id().equals(chapterId)).findFirst().orElseThrow(()->new EpubFailure(NOT_FOUND));
+        var spine=manifest.spine().stream().filter(s->s.id().equals(entry.spineItemId())).findFirst().orElseThrow(()->new EpubFailure(NOT_FOUND));
+        var file=file(actor,book,manifest.versionId(),spine.href().substring(5),false);verify(file);
+        String end=manifest.toc().stream().filter(t->t.ordinal()>entry.ordinal()&&Objects.equals(t.spineItemId(),entry.spineItemId())&&t.fragment()!=null&&!Objects.equals(t.fragment(),entry.fragment())).map(Toc::fragment).findFirst().orElse(null);
+        try(var input=open(file)) {
+            if(file.object().size()>16*1024*1024)throw new IOException("Reader resource too large");
+            var bytes=input.readNBytes(16*1024*1024+1);if(bytes.length>16*1024*1024)throw new IOException("Reader resource too large");
+            return new Chapter(entry.id(),entry.label(),com.example.epub.core.integration.epub.ChapterDocument.slice(bytes,entry.fragment(),end),"/api/v1/books/"+book+"/versions/"+manifest.versionId()+"/resources/");
+        } catch(IOException unavailable) {throw new EpubFailure(STORAGE_UNAVAILABLE);}
+    }
     public InputStream open(Delivery file) throws IOException {return storage.open(file.object().key());}
 }

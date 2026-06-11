@@ -31,6 +31,8 @@ logs/
 # Test and reports
 coverage/
 test-results/
+__pycache__/
+*.pyc
 
 # Local-only notes and configuration
 /docs/
