@@ -471,9 +471,24 @@ New private imports are saved once on the owner's Want-to-read shelf; uploading 
 new version preserves existing shelf/favorite/history choices. This does not set
 reading progress or record an overview view. Source language, attribution and
 rights text are retained in the sanitized package; unknown language stays `und`.
-The renderer/frontend is a later task. Extractor `local-epub-2` / sanitizer
-`allowlist-2` records NAV/NCX/FALLBACK provenance in the manifest; fallback spine
+Extractor `local-epub-3` / sanitizer
+`allowlist-3` records NAV/NCX/FALLBACK provenance in the manifest; fallback spine
 links are navigational sections, not invented chapters (chapter count unknown).
 Legacy versions are labeled LEGACY. New extraction/sanitizer changes create new
 versions; existing READY bytes are never rewritten. CSS rule scanning is linear
 and long URI/element limits also apply to delivery artifacts.
+
+Legacy XHTML content can recover HTML entities and unclosed tags through pinned
+jsoup 1.23.2 before the same allowlist sanitizer. Package/container/NCX XML stays
+strict and offline; DTDs, external entities and resource-limit violations remain
+rejected. Recovery also has depth, element and attribute limits. Named HTML
+anchors are retained as IDs so the chapter API can resolve legacy TOC fragments.
+Stale local TOC file targets fall back to the actual spine with unknown chapter
+count; missing manifest/spine files are errors, never fabricated chapters.
+
+Recognized IDPF font-obfuscation entries are omitted and the reader uses fallback
+fonts. Encrypted content and unknown encryption algorithms remain unsupported.
+See [EPUB font obfuscation](https://www.w3.org/TR/epub-33/#sec-font-obfuscation)
+and [jsoup parser limits](https://jsoup.org/apidocs/org/jsoup/parser/Parser.html).
+Existing READY versions remain immutable; retry failed sources with the new
+producer. Local ingestion and public publication are separate operator choices.

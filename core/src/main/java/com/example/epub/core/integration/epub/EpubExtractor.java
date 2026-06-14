@@ -18,7 +18,7 @@ import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 
 /** Bounded offline reflowable EPUB2/3 extractor; deliberately conservative CSS. */
 public final class EpubExtractor {
-    public static final String VERSION="local-epub-2", SANITIZER="allowlist-2";
+    public static final String VERSION="local-epub-3", SANITIZER="allowlist-3";
     public static final int MAX_SOURCE=64*1024*1024, MAX_ENTRY=16*1024*1024, MAX_TOTAL=256*1024*1024, MAX_ENTRIES=10000;
     private static final String XHTML="http://www.w3.org/1999/xhtml";
     public static final class Invalid extends IOException {
@@ -43,12 +43,16 @@ public final class EpubExtractor {
     }
     private static String firstText(Element parent,String name,String fallback) {var found=all(parent,name);return found.isEmpty()?fallback:found.getFirst().getTextContent().strip();}
     private static String cleanLabel(String value) {String label=value.replaceAll("\\s+"," ").strip();return label.isEmpty()?"Untitled":label.substring(0,Math.min(500,label.length()));}
-    private static Document xml(byte[] bytes) throws Exception {
+    private static byte[] inertDoctype(byte[] bytes) throws Exception {
         // Recognize only the inert standard XHTML declaration; every other DTD remains forbidden.
         String text=new String(bytes,StandardCharsets.UTF_8);
         String without=text.replaceFirst("<!DOCTYPE\\s+html(?:\\s+PUBLIC\\s+[\"']-//W3C//DTD XHTML 1\\.[01]//EN[\"']\\s+[\"']http://www\\.w3\\.org/TR/xhtml1[01]/DTD/xhtml1[01]\\.dtd[\"'])?\\s*>","")
             .replaceFirst("<!DOCTYPE\\s+ncx\\s+PUBLIC\\s+[\"']-//NISO//DTD ncx 2005-1//EN[\"']\\s+[\"']http://www\\.daisy\\.org/z3986/2005/ncx-2005-1\\.dtd[\"']\\s*>","");
         if(!without.equals(text))bytes=utf(without);
+        return bytes;
+    }
+    private static Document xml(byte[] bytes) throws Exception {
+        bytes=inertDoctype(bytes);
         var factory=DocumentBuilderFactory.newInstance();factory.setNamespaceAware(true);factory.setXIncludeAware(false);factory.setExpandEntityReferences(false);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
         factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
@@ -61,6 +65,34 @@ public final class EpubExtractor {
         var builder=factory.newDocumentBuilder();builder.setEntityResolver((a,b)->{throw invalid();});
         builder.setErrorHandler(new org.xml.sax.helpers.DefaultHandler() {@Override public void fatalError(org.xml.sax.SAXParseException e) throws org.xml.sax.SAXException {throw e;}});
         var doc=builder.parse(new ByteArrayInputStream(bytes));if(doc.getElementsByTagName("*").getLength()>100000)throw new Invalid("EPUB_LIMIT_EXCEEDED");return doc;
+    }
+    private static Document xhtml(byte[] bytes) throws Exception {
+        try {return xml(bytes);} catch(org.xml.sax.SAXParseException broken) {
+            String text=new String(inertDoctype(bytes),StandardCharsets.UTF_8),upper=text.toUpperCase(Locale.ROOT);
+            if(upper.contains("<!DOCTYPE")||upper.contains("<!ENTITY")||broken.getMessage().startsWith("JAXP"))throw invalid();
+            if(text.chars().filter(c->c=='<').count()>100000)throw new Invalid("EPUB_LIMIT_EXCEEDED");
+            var parser=org.jsoup.parser.Parser.htmlParser().setMaxDepth(64);
+            var recovered=org.jsoup.Jsoup.parse(text,"",parser);
+            var document=new org.jsoup.helper.W3CDom().fromJsoup(recovered);
+            var stack=new ArrayDeque<Map.Entry<Node,Integer>>();stack.push(Map.entry(document.getDocumentElement(),1));int elements=0;
+            while(!stack.isEmpty()) {
+                var current=stack.pop();if(current.getValue()>64||++elements>100000||current.getKey().getAttributes().getLength()>100)throw new Invalid("EPUB_LIMIT_EXCEEDED");
+                for(Node child=current.getKey().getFirstChild();child!=null;child=child.getNextSibling())if(child instanceof Element)stack.push(Map.entry(child,current.getValue()+1));
+            }
+            return document;
+        }
+    }
+    private static Set<String> obfuscatedFonts(Map<String,byte[]> files) throws Exception {
+        if(!files.containsKey("META-INF/encryption.xml"))return Set.of();
+        var entries=all(xml(files.get("META-INF/encryption.xml")).getDocumentElement(),"EncryptedData");
+        if(entries.isEmpty())throw new Invalid("EPUB_DRM_UNSUPPORTED");
+        var paths=new HashSet<String>();
+        for(var entry:entries) {
+            var methods=all(entry,"EncryptionMethod");var references=all(entry,"CipherReference");
+            if(methods.size()!=1||references.size()!=1||!methods.getFirst().getAttribute("Algorithm").equals("http://www.idpf.org/2008/embedding"))throw new Invalid("EPUB_DRM_UNSUPPORTED");
+            var target=resolve("root",references.getFirst().getAttribute("URI"));if(target.fragment()!=null)throw new Invalid("EPUB_DRM_UNSUPPORTED");paths.add(target.path());
+        }
+        return paths;
     }
     private static byte[] serialize(Document document) throws Exception {
         var factory=TransformerFactory.newInstance();factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD,"");factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET,"");
@@ -107,7 +139,7 @@ public final class EpubExtractor {
             }
         }
         if(!Arrays.equals(result.get("mimetype"),utf("application/epub+zip")))throw invalid();
-        if(result.containsKey("META-INF/encryption.xml")||result.containsKey("META-INF/rights.xml"))throw new Invalid("EPUB_DRM_UNSUPPORTED");
+        if(result.containsKey("META-INF/rights.xml"))throw new Invalid("EPUB_DRM_UNSUPPORTED");
         return result;
     }
     private static void preflightDirectory(byte[] source) throws Invalid {
@@ -172,6 +204,7 @@ public final class EpubExtractor {
         if(tag.equals("meta"))return null;
         var result=output.createElementNS(XHTML,tag);
         for(String attr:ATTRS)if(element.hasAttribute(attr)&&element.getAttribute(attr).length()<=1000)result.setAttribute(attr,element.getAttribute(attr));
+        if(tag.equals("a")&&!result.hasAttribute("id")&&element.hasAttribute("name")&&!element.getAttribute("name").isEmpty()&&element.getAttribute("name").length()<=1000)result.setAttribute("id",element.getAttribute("name"));
         String inline=declarations(element.getAttribute("style"));if(!inline.isEmpty())result.setAttribute("style",inline);
         if(tag.equals("a")&&element.hasAttribute("href")) {String value=link(base,element.getAttribute("href"),byPath,false);if(value!=null)result.setAttribute("href",value);}
         if(tag.equals("img")) {String value=link(base,element.getAttribute("src"),byPath,true);if(value==null)return null;result.setAttribute("src",value);}
@@ -196,22 +229,28 @@ public final class EpubExtractor {
         String opf=archivePath(roots.getFirst().getAttribute("full-path"));var pkg=xml(required(files,opf)).getDocumentElement();
         if(!Set.of("2.0","3.0").contains(pkg.getAttribute("version")))throw new Invalid("EPUB_UNSUPPORTED");
         for(var meta:all(pkg,"meta"))if((meta.getAttribute("property").equals("rendition:layout")&&meta.getTextContent().strip().equals("pre-paginated"))||meta.getAttribute("name").equals("fixed-layout")&&meta.getAttribute("content").equalsIgnoreCase("true"))throw new Invalid("EPUB_FIXED_LAYOUT_UNSUPPORTED");
+        var blockedFonts=obfuscatedFonts(files);var foundFonts=new HashSet<String>();
         var items=new LinkedHashMap<String,Item>();var byPath=new HashMap<String,Item>();int index=0;String cover=null,ncx=null,nav=null;
         for(var element:all(pkg,"item")) {
             String id=element.getAttribute("id"),media=element.getAttribute("media-type"),properties=element.getAttribute("properties");var target=resolve(opf,element.getAttribute("href"));
             if(id.isBlank()||items.containsKey(id)||target.fragment()!=null)throw invalid();
             String extension=switch(media) {case "application/xhtml+xml"->"xhtml";case "text/css"->"css";case "image/jpeg"->"jpg";case "image/png"->"png";case "image/gif"->"gif";case "font/ttf","application/x-font-ttf","application/vnd.ms-opentype"->"ttf";case "font/otf"->"otf";case "font/woff","application/font-woff"->"woff";case "font/woff2"->"woff2";default->null;};
+            if(blockedFonts.contains(target.path())) {
+                if(extension==null||!Set.of("ttf","otf","woff","woff2").contains(extension))throw new Invalid("EPUB_DRM_UNSUPPORTED");
+                foundFonts.add(target.path());extension=null;
+            }
             if(media.equals("application/x-dtbncx+xml"))ncx=target.path();
             if(Arrays.asList(properties.split("\\s+")).contains("nav"))nav=target.path();
             Item item=new Item(id,target.path(),extension==null?null:"EPUB/r"+(index++)+"."+extension,media,properties);items.put(id,item);
             if(item.output()!=null) {required(files,item.path());if(byPath.put(item.path(),item)!=null)throw invalid();if(item.media().startsWith("image/")&&Arrays.asList(properties.split("\\s+")).contains("cover-image"))cover=item.output();}
         }
+        if(!foundFonts.containsAll(blockedFonts))throw new Invalid("EPUB_DRM_UNSUPPORTED");
         for(var meta:all(pkg,"meta"))if(meta.getAttribute("name").equals("cover")) {var item=items.get(meta.getAttribute("content"));if(item!=null&&item.media().startsWith("image/"))cover=item.output();}
         var texts=new HashMap<String,String>();var titles=new HashMap<String,String>();var resources=new ArrayList<Resource>();var ids=new HashMap<String,Set<String>>();int nodeBudget=500000;long artifactBytes=0;
         for(var item:byPath.values().stream().sorted(Comparator.comparing(Item::output)).toList()) {
             byte[] bytes=files.get(item.path());
             if(item.media().equals("application/xhtml+xml")) {
-                var sourceDoc=xml(bytes);nodeBudget-=sourceDoc.getElementsByTagName("*").getLength();if(nodeBudget<0)throw new Invalid("EPUB_LIMIT_EXCEEDED");if(!local(sourceDoc.getDocumentElement()).equals("html"))throw invalid();var document=DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();document.appendChild(clean(sourceDoc.getDocumentElement(),document,item.path(),byPath));
+                var sourceDoc=xhtml(bytes);nodeBudget-=sourceDoc.getElementsByTagName("*").getLength();if(nodeBudget<0)throw new Invalid("EPUB_LIMIT_EXCEEDED");if(!local(sourceDoc.getDocumentElement()).equals("html"))throw invalid();var document=DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();document.appendChild(clean(sourceDoc.getDocumentElement(),document,item.path(),byPath));
                 var anchors=new HashSet<String>();for(var element:all(document.getDocumentElement(),"*"))if(element.hasAttribute("id")&&!anchors.add(element.getAttribute("id")))throw invalid();ids.put(item.path(),anchors);texts.put(item.path(),raw(document.getDocumentElement()));titles.put(item.path(),cleanLabel(firstText(document.getDocumentElement(),"title","Untitled")));bytes=serialize(document);
             } else if(item.media().equals("text/css"))bytes=utf(css(new String(bytes,StandardCharsets.UTF_8),item.path(),byPath));
             else if(item.media().startsWith("image/")) {
@@ -229,13 +268,13 @@ public final class EpubExtractor {
             spine.add(new Spine(item.output(),titles.get(item.path()),!ref.getAttribute("linear").equals("no"),texts.get(item.path())));
         }
         if(spine.isEmpty())throw invalid();var toc=new ArrayList<Toc>();String tocSource=nav!=null?"NAV":ncx!=null?"NCX":"FALLBACK";
-        if(nav!=null) {
-            var navDoc=xml(required(files,nav));Element tocNav=null;
+        try {if(nav!=null) {
+            var navDoc=xhtml(required(files,nav));Element tocNav=null;
             for(var candidate:all(navDoc.getDocumentElement(),"nav"))if(Arrays.asList(candidate.getAttributeNS("http://www.idpf.org/2007/ops","type").split("\\s+")).contains("toc")) {tocNav=candidate;break;}
             if(tocNav==null)throw invalid();for(var child:children(tocNav))if(local(child).equals("ol"))navigation(child,nav,-1,false,toc,sourceIndexes,ids,0);
         } else if(ncx!=null) {
             var maps=all(xml(required(files,ncx)).getDocumentElement(),"navMap");if(maps.size()!=1)throw invalid();navigation(maps.getFirst(),ncx,-1,true,toc,sourceIndexes,ids,0);
-        }
+        }} catch(Invalid navigationFailure) {if(!navigationFailure.code().equals("EPUB_TOC_UNAVAILABLE"))throw navigationFailure;toc.clear();}
         if(toc.isEmpty()) {tocSource="FALLBACK";for(int i=0;i<spine.size();i++)toc.add(new Toc(-1,i,spine.get(i).title(),i,null,false));}
         String title=cleanLabel(firstText(pkg,"title","Untitled"));
         var output=new LinkedHashMap<String,byte[]>();output.put("mimetype",utf("application/epub+zip"));output.put("META-INF/container.xml",utf("<?xml version=\"1.0\"?><container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"EPUB/package.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>"));
@@ -261,7 +300,7 @@ public final class EpubExtractor {
                 if(!ncx&&local(child).equals("ol"))nested=child;
             }
             Integer targetIndex=null;String fragment=null;
-            if(href!=null&&!href.isEmpty()) {var target=resolve(base,href);targetIndex=indexes.get(target.path());fragment=target.fragment();if(targetIndex==null||fragment!=null&&!ids.getOrDefault(target.path(),Set.of()).contains(fragment))throw invalid();}
+            if(href!=null&&!href.isEmpty()) {var target=resolve(base,href);targetIndex=indexes.get(target.path());fragment=target.fragment();if(targetIndex==null)throw new Invalid("EPUB_TOC_UNAVAILABLE");if(fragment!=null&&!ids.getOrDefault(target.path(),Set.of()).contains(fragment))throw invalid();}
             int ordinal=toc.size();toc.add(new Toc(parent,ordinal,cleanLabel(label),targetIndex,fragment,targetIndex!=null));
             if(ncx)navigation(entry,base,ordinal,true,toc,indexes,ids,depth+1);else if(nested!=null)navigation(nested,base,ordinal,false,toc,indexes,ids,depth+1);
         }
