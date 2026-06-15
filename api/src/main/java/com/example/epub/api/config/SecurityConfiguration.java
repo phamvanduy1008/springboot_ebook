@@ -52,7 +52,7 @@ public class SecurityConfiguration {
             http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.POST,"/api/v1/books/*/views").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.HEAD,"/api/v1/books/**").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET,"/api/v1/books/**","/api/v1/categories/**","/api/v1/home","/api/v1/rankings/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET,"/api/v1/books/**","/api/v1/categories/**","/api/v1/home","/api/v1/recommendations","/api/v1/rankings/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/api/v1/health",
                     "/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/capabilities",
                     "/api/v1/auth/register", "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",

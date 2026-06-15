@@ -2307,6 +2307,38 @@ paths:
           minimum: 1
           maximum: 100
           default: 20
+  /api/v1/recommendations:
+    get:
+      operationId: getRecommendations
+      summary: Lightweight personalized or guest book suggestions
+      description: Uses the current session when present. Public eligible books only; excludes
+        the current user's shelves and favorites. No-store; no scores or history are exposed.
+        Invalid sessions are treated as guests by the existing account filter.
+      security:
+      - {}
+      - SessionCookie: []
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 12
+          default: 6
+      responses:
+        '200':
+          description: Suggestions, possibly fewer than limit when the catalog is small
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/home:
     get:
       operationId: getCatalogHome
@@ -3981,6 +4013,28 @@ components:
           type: integer
           format: int64
           minimum: 0
+    RecommendationResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/RecommendationItem'
+    RecommendationItem:
+      type: object
+      additionalProperties: false
+      required: [book, reasonCode, reasonText]
+      properties:
+        book:
+          $ref: '#/components/schemas/PublicCatalogBook'
+        reasonCode:
+          type: string
+          enum: [SAME_CATEGORY, SAME_AUTHOR, SAME_TAG, POPULAR, NEW, DISCOVERY]
+        reasonText:
+          type: string
     CatalogHome:
       type: object
       additionalProperties: false

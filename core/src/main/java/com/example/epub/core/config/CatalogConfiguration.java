@@ -15,6 +15,8 @@ public class CatalogConfiguration {
     @Bean public com.example.epub.core.service.library.LibraryService libraryService(com.example.epub.core.repository.library.LibraryRepository library,AccountService accounts,PlatformTransactionManager manager) {return new com.example.epub.core.service.library.LibraryService(library,accounts,manager,java.time.Clock.systemUTC());}
     @Bean public EditorialRepository editorialRepository(JdbcTemplate jdbc) {return new EditorialRepository(jdbc);}
     @Bean public StoryOverviewService storyOverviewService(CatalogRepository catalog,EditorialRepository editorial,MetricsRepository metrics,PlatformTransactionManager manager) {return new StoryOverviewService(catalog,editorial,metrics,java.time.Clock.systemUTC(),manager);}
+    @Bean public RecommendationRepository recommendationRepository(JdbcTemplate jdbc) {return new RecommendationRepository(jdbc);}
+    @Bean public RecommendationService recommendationService(RecommendationRepository repository,CatalogRepository catalog,PlatformTransactionManager manager) {return new RecommendationService(repository,catalog,java.time.Clock.systemUTC(),manager);}
     @Bean public MetricsRepository metricsRepository(JdbcTemplate jdbc) {return new MetricsRepository(jdbc);}
     @Bean public RankingService rankingService(CatalogRepository catalog,MetricsRepository metrics,AccountService accounts,PlatformTransactionManager manager) {return new RankingService(catalog,metrics,accounts,java.time.Clock.systemUTC(),manager);}
     @Bean public PublicCatalogService publicCatalogService(CatalogRepository catalog,RankingService rankings,PlatformTransactionManager manager) {return new PublicCatalogService(catalog,rankings,manager);}
