@@ -8,6 +8,145 @@ info:
 servers:
 - url: /
 paths:
+  /api/v1/admin/books/{book}/versions/{version}/preview/manifest:
+    get:
+      operationId: getAdminEpubPreviewManifest
+      summary: Preview a sanitized READY version of a public catalog book
+      description: Active ADMIN session only. The book may still be a draft or hidden.
+        Private user books and non-READY versions are unavailable. Returned asset URLs
+        remain admin-only and no-store; preview does not publish the book.
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: version
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Sanitized preview manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderManifest'
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: Public catalog book or READY version unavailable}
+        '503': {description: Reader artifact unavailable}
+  /api/v1/admin/books/{book}/versions/{version}/preview/chapters/{chapter}:
+    get:
+      operationId: getAdminEpubPreviewChapter
+      summary: Preview one sanitized section before publication
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: version
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: chapter
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Sanitized chapter for a sandboxed preview frame
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReaderChapter'
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: Chapter or version unavailable}
+        '503': {description: Reader artifact unavailable}
+  /api/v1/admin/books/{book}/versions/{version}/preview/reader.epub:
+    get:
+      operationId: downloadAdminEpubPreview
+      summary: Download the sanitized reader EPUB for admin inspection
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: version
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Sanitized EPUB, never the uploaded source
+          content:
+            application/epub+zip:
+              schema: {type: string, format: binary}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: Version unavailable}
+        '503': {description: Reader artifact unavailable}
+  /api/v1/admin/books/{book}/versions/{version}/preview/cover:
+    get:
+      operationId: getAdminEpubPreviewCover
+      summary: Preview the extracted cover of a READY EPUB
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: version
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Sanitized cover image
+          content:
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/png:
+              schema: {type: string, format: binary}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: Cover or version unavailable}
+  /api/v1/admin/books/{book}/versions/{version}/preview/resources/{name}:
+    get:
+      operationId: getAdminEpubPreviewResource
+      summary: Deliver a sanitized preview resource
+      security:
+      - SessionCookie: []
+      parameters:
+      - name: book
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: version
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: name
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Sanitized XHTML, CSS, image or font resource
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        '401': {description: Authentication required}
+        '403': {description: Active administrator required}
+        '404': {description: Resource or version unavailable}
+        '503': {description: Reader artifact unavailable}
   /api/v1/books/{book}/manifest:
     get:
       operationId: getBookManifest

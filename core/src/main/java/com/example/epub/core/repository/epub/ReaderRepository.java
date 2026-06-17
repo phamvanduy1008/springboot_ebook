@@ -14,6 +14,13 @@ public class ReaderRepository {
              AND ((b.visibility='PUBLIC' AND b.status='PUBLISHED' AND b.published_version_id=v.id) OR (b.visibility='PRIVATE' AND b.owner_id=?))
             """,(r,n)->new Version(r.getObject(1,UUID.class),r.getObject(2,UUID.class),r.getString(3).equals("PRIVATE"),r.getString(4)),requested,book,actor).stream().findFirst();
     }
+    public Optional<Version> adminPreviewVersion(UUID book,UUID requested) {
+        return jdbc.query("""
+            SELECT b.id,v.id,b.visibility,v.toc_source FROM books b JOIN book_versions v ON v.book_id=b.id
+            WHERE b.id=? AND v.id=? AND b.visibility='PUBLIC' AND b.status<>'DELETED'
+              AND b.deleted_at IS NULL AND v.state='READY'
+            """,(r,n)->new Version(r.getObject(1,UUID.class),r.getObject(2,UUID.class),false,r.getString(4)),book,requested).stream().findFirst();
+    }
     private ObjectRow object(java.sql.ResultSet r,int n) throws java.sql.SQLException {return new ObjectRow(r.getObject("id",UUID.class),r.getString("object_key"),r.getString("sha256"),r.getLong("size_bytes"),r.getString("media_type"),r.getString("kind"));}
     public Optional<ObjectRow> reader(UUID version,boolean cover) {
         return jdbc.query("SELECT o.* FROM book_versions v JOIN stored_objects o ON o.id=v."+(cover?"cover_object_id":"reader_object_id")+" AND o.book_version_id=v.id WHERE v.id=? AND o.kind=? AND o.backend='LOCAL' AND o.state='READY'",this::object,version,cover?"COVER":"READER_EPUB").stream().findFirst();
