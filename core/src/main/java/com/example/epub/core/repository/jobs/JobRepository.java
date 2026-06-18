@@ -63,5 +63,16 @@ public class JobRepository {
             WHERE j.id=? AND (j.owner_id=? OR (? AND j.owner_id IS NULL AND (b.visibility='PUBLIC' OR j.book_id IS NULL)))
             """,(rs,row)->new Status(rs.getObject("id",UUID.class),rs.getObject("book_id",UUID.class),rs.getObject("book_version_id",UUID.class),rs.getString("type"),rs.getString("status"),rs.getInt("attempts"),rs.getInt("max_attempts"),safeError(rs.getString("last_error_code")),rs.getTimestamp("updated_at").toInstant()),id,actor,admin).stream().findFirst();
     }
+    public Page adminPage(UUID actor,String status,String type,int page,int size) {
+        String where=" FROM jobs j LEFT JOIN books b ON b.id=j.book_id WHERE (j.owner_id=? OR (j.owner_id IS NULL AND (b.visibility='PUBLIC' OR j.book_id IS NULL)))";
+        var args=new ArrayList<Object>();args.add(actor);
+        if(status!=null) {where+=" AND j.status=?";args.add(status);}
+        if(type!=null) {where+=" AND j.type=?";args.add(type);}
+        long total=jdbc.queryForObject("SELECT count(*)"+where,Long.class,args.toArray());
+        var listArgs=new ArrayList<>(args);listArgs.add(size);listArgs.add((long)page*size);
+        var items=jdbc.query("SELECT j.*"+where+" ORDER BY j.updated_at DESC,j.id DESC LIMIT ? OFFSET ?",
+            (rs,row)->new Status(rs.getObject("id",UUID.class),rs.getObject("book_id",UUID.class),rs.getObject("book_version_id",UUID.class),rs.getString("type"),rs.getString("status"),rs.getInt("attempts"),rs.getInt("max_attempts"),safeError(rs.getString("last_error_code")),rs.getTimestamp("updated_at").toInstant()),listArgs.toArray());
+        return new Page(items,page,size,total);
+    }
     private static String safeError(String code) {return code==null?null:code.matches("[A-Z][A-Z0-9_]{0,79}")?code:"JOB_PROCESSING_FAILED";}
 }

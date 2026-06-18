@@ -29,4 +29,10 @@ public class JobService {
         var account=accounts.byId(actor).orElse(null);if(!AccessPolicy.active(account))throw new AccessPolicy.Denied(false);
         return jobs.visible(id,actor,"ADMIN".equals(account.role())).orElseThrow(()->new CatalogFailure(CatalogFailure.Reason.NOT_FOUND));
     }
+    public Page adminPage(UUID actor,java.time.Instant credentialEpoch,String status,String type,int page,int size) {
+        var account=accounts.byId(actor).orElse(null);AccessPolicy.requireAdministrator(account);
+        if(!Objects.equals(credentialEpoch,account.passwordChangedAt()))throw new AccessPolicy.Denied(false);
+        if(page<0||page>1000000||size<1||size>100||status!=null&&!Set.of("QUEUED","RUNNING","SUCCEEDED","FAILED","CANCELLED").contains(status)||type!=null&&!Set.of("INGEST","TTS","CLEANUP").contains(type))throw CatalogFailure.invalid("query","Invalid job filter or page");
+        return jobs.adminPage(actor,status,type,page,size);
+    }
 }
