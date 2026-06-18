@@ -1107,6 +1107,39 @@ paths:
           description: Private storage unavailable
         default:
           $ref: '#/components/responses/Problem'
+  /api/v1/admin/jobs:
+    get:
+      operationId: listAdminJobs
+      security:
+      - SessionCookie: []
+      summary: List visible public and own jobs for an administrator
+      description: Excludes jobs owned by other users and private books. Payloads, storage keys and lease tokens are never returned. Cache-Control is no-store.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+      - name: type
+        in: query
+        schema:
+          type: string
+          enum: [INGEST, TTS, CLEANUP]
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Redacted job page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminJobPage'
+        '401':
+          description: Session required
+        '403':
+          description: Administrator required
+        default:
+          $ref: '#/components/responses/Problem'
   /api/v1/jobs/{id}:
     get:
       operationId: getJob
@@ -3483,6 +3516,60 @@ components:
           type: object
           additionalProperties:
             type: string
+    AdminJobPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminJob'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    AdminJob:
+      type: object
+      additionalProperties: false
+      required: [id, type, status, attempts, maxAttempts, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookId:
+          type: string
+          format: uuid
+          nullable: true
+        versionId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [INGEST, TTS, CLEANUP]
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+        attempts:
+          type: integer
+          minimum: 0
+        maxAttempts:
+          type: integer
+          minimum: 1
+        errorCode:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
     Page:
       description: Reusable envelope for future list endpoints; items are mapped DTOs,
         never entities.

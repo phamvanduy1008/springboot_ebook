@@ -1,6 +1,7 @@
 package com.example.epub.api.controller.jobs;
 import com.example.epub.core.service.jobs.JobService;
 import com.example.epub.core.model.jobs.JobModels.Status;
+import com.example.epub.core.model.jobs.JobModels.Page;
 import com.example.epub.api.security.SessionPrincipal;
 import com.example.epub.api.exception.AuthFailure;
 import java.util.UUID;
@@ -18,5 +19,10 @@ public class JobController {
         var auth=SecurityContextHolder.getContext().getAuthentication();
         if(auth==null||!(auth.getPrincipal() instanceof SessionPrincipal principal))throw new AuthFailure(401,"AUTHENTICATION_REQUIRED");
         return ResponseEntity.ok().header("Cache-Control","no-store").body(jobs.status(principal.userId(),id));
+    }
+    @GetMapping("/api/v1/admin/jobs") public ResponseEntity<Page> adminJobs(@RequestParam(required=false) String status,@RequestParam(required=false) String type,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) {
+        var auth=SecurityContextHolder.getContext().getAuthentication();
+        if(auth==null||!(auth.getPrincipal() instanceof SessionPrincipal principal))throw new AuthFailure(401,"AUTHENTICATION_REQUIRED");
+        return ResponseEntity.ok().header("Cache-Control","no-store").body(jobs.adminPage(principal.userId(),principal.credentialEpoch(),status,type,page,size));
     }
 }
