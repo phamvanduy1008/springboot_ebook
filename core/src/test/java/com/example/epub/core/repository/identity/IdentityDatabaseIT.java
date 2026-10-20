@@ -80,6 +80,24 @@ class IdentityDatabaseIT {
             assertTrue(new BCryptPasswordEncoder().matches("local-test-password",seeded.passwordHash()));
             assertNotEquals("local-test-password",seeded.passwordHash());
         }
+        UUID adminId;String adminHash;
+        try (var context=new SpringApplicationBuilder(TestApplication.class).web(org.springframework.boot.WebApplicationType.NONE)
+                .run("--spring.profiles.active=local", "--spring.config.import=classpath:epub-runtime.properties",
+                        "--app.local-admin-seed.enabled=true", "--ADMIN_SEED_EMAIL=admin-seed@example.test", "--ADMIN_SEED_PASSWORD=local-admin-password-123",
+                        "--debug=false", "--logging.level.root=WARN")) {
+            var seeded=context.getBean(UserAccounts.class).findByNormalizedEmail("admin-seed@example.test").orElseThrow();
+            assertEquals("ADMIN",seeded.role());assertEquals("ACTIVE",seeded.status());
+            assertNotNull(context.getBean(AccountRepository.class).byEmail("admin-seed@example.test").orElseThrow().emailVerifiedAt());
+            assertTrue(new BCryptPasswordEncoder().matches("local-admin-password-123",seeded.passwordHash()));
+            adminId=seeded.id();adminHash=seeded.passwordHash();
+        }
+        try (var context=new SpringApplicationBuilder(TestApplication.class).web(org.springframework.boot.WebApplicationType.NONE)
+                .run("--spring.profiles.active=local", "--spring.config.import=classpath:epub-runtime.properties",
+                        "--app.local-admin-seed.enabled=true", "--ADMIN_SEED_EMAIL=admin-seed@example.test", "--ADMIN_SEED_PASSWORD=different-local-password-123",
+                        "--debug=false", "--logging.level.root=WARN")) {
+            var seeded=context.getBean(UserAccounts.class).findByNormalizedEmail("admin-seed@example.test").orElseThrow();
+            assertEquals(adminId,seeded.id());assertEquals(adminHash,seeded.passwordHash());
+        }
     }
     private static SessionRepository<? extends Session> sessionRepository(DataSource datasource) {
         return new JdbcIndexedSessionRepository(new JdbcTemplate(datasource),new TransactionTemplate(new DataSourceTransactionManager(datasource)));

@@ -1,6 +1,7 @@
 com.example.epub.core.config.RuntimeConfiguration
 com.example.epub.core.config.IdentityConfiguration
 com.example.epub.core.config.LocalUserSeed
+com.example.epub.core.config.LocalAdminSeed
 com.example.epub.core.config.CatalogConfiguration
 com.example.epub.core.config.StorageConfiguration
 com.example.epub.core.config.JobConfiguration

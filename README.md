@@ -144,6 +144,10 @@ email. The API trusts the direct remote address, not arbitrary forwarded headers
 proxy deployment must explicitly configure its trusted forwarding boundary before release.
 The local opt-in seed creates a USER only, using `APP_LOCAL_SEED_ENABLED`, `SEED_EMAIL`
 and `SEED_PASSWORD` from private local configuration. No default login exists.
+An independent `APP_LOCAL_ADMIN_SEED_ENABLED=true` local-profile switch reads
+`ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` from ignored `.env` to create one verified
+browser administrator when that email is absent. It refuses a conflicting non-admin
+account and does not replace an existing administrator password on restart.
 
 Run `tools/Test-LocalDatabase.ps1` on Windows with JDK 21 and native PostgreSQL to exercise
 CSRF, login/logout, session fixation, throttle and session persistence across API restart.
@@ -177,7 +181,17 @@ Create an empty PostgreSQL database and a dedicated application role, then set `
 
 Local user seeding is disabled by default. It can be enabled explicitly in the local profile with `APP_LOCAL_SEED_ENABLED`, `SEED_EMAIL` and `SEED_PASSWORD`. It creates a regular user with a BCrypt hash, never a default administrator.
 
-To create a browser administrator on a **loopback local database** after setting up `.env`, run:
+For a local browser administrator, place these values in the ignored `.env` file and start the local-profile API:
+
+```properties
+APP_LOCAL_ADMIN_SEED_ENABLED=true
+ADMIN_SEED_EMAIL=admin@local.test
+ADMIN_SEED_PASSWORD=<a-unique-12-to-72-byte-password>
+```
+
+This first-run seed requires a loopback PostgreSQL database and creates an active, verified `ADMIN` only when the email is absent. On later starts it checks the account role and status but leaves the stored password unchanged. The database remains the source of truth for authentication; changing the account password does not rewrite `.env`.
+
+To provision a browser administrator immediately through SQL on a **loopback local database**, run:
 
 ```powershell
 pwsh -NoProfile -File tools/Seed-LocalAdmin.ps1 -EnvFile .env
