@@ -177,6 +177,14 @@ Create an empty PostgreSQL database and a dedicated application role, then set `
 
 Local user seeding is disabled by default. It can be enabled explicitly in the local profile with `APP_LOCAL_SEED_ENABLED`, `SEED_EMAIL` and `SEED_PASSWORD`. It creates a regular user with a BCrypt hash, never a default administrator.
 
+To create a browser administrator on a **loopback local database** after setting up `.env`, run:
+
+```powershell
+pwsh -NoProfile -File tools/Seed-LocalAdmin.ps1 -EnvFile .env
+```
+
+The default email is `admin@local.test`; pass `-Email you@example.test` to choose another. The runner generates a random initial password, sends it to PostgreSQL through standard input, and prints it once after verifying the BCrypt hash. The SQL is in `tools/sql/Seed-LocalAdmin.sql`. It refuses to modify an existing email and will not connect to a non-loopback database. Sign in through the normal `/#/login` page, then change the password in Account settings. Never commit the printed password.
+
 ## Run
 
 After building, run each process in its own terminal:
